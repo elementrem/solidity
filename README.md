@@ -9,20 +9,23 @@ If you specify the right conditions, your requirements will be handled automatic
 
 ### [Install Solidity (To build from source is unnecessary)](https://github.com/elementrem/solidity/releases) 
 ### [To build from source](solidity_build.md)
+
 ***
 
-### Deploying your simple contract – Step by Step
+## Deploying a simple contract Lab – Step by Step
+
+***
 
 ***Keep in mind that This contract will consume approximately 0.006 Element.***
 
 
-You should make sure whether the solidity compiler is applied or not.
+You should make sure whether the ***solidity compiler*** is applied or not.
 ```
 > ele.getCompilers()
 ["Solidity"]
 ```
 
-If the solidity is not applied, You can apply it manually.
+If the ***solidity*** is not applied, You can apply it manually.
 ```
 > admin.setSolc("/usr/bin/solc")
 "solc, the solidity compiler commandline interface\nVersion: 0.3.6-0/None-Linux/g++\n\npath: /usr/bin/solc"
@@ -78,7 +81,6 @@ Let's construct the initalizer:
 ```
 > var initializer =  {from:web3.ele.accounts[0], data: smcontractCompiled.SMcontract.code, gas: 300000}
 ```
-ele.accounts[0] = First account. accounts[1] Secend account.
 
 - Deploying the Contract
 We are now ready to deploy! Remember that `new` method? We can finally use it:    
@@ -88,8 +90,10 @@ You will need to enter the password you entered when first importing the private
 
 ```
 > var smcontract = contract.new(initializer, callback);
-Contract transaction send: TransactionHash: 0x111111111111111111111111111111111111111111 waiting to be confirmed……
+Contract transaction send: TransactionHash: 0xe37f1551e9daec634f7a87259f5a0b4a3c529f102c092713a48ff10456d96310 waiting to be confirmed……...
+
         // Wait until the transaction is confirmed.
+
 Contract confirmed!!!
 [object Object]
 ```
@@ -99,10 +103,11 @@ In order for us to write to the entryLog of the contract and have that update st
 
 ```
 > smcontract.setEntry.sendTransaction("Hello Elementrem!", {from: ele.accounts[0]});
-"0x111111111111111111111111111111111111111111111111111111111111111111"
+"0x1d005031f0fc437cb4d797fd9125ffe1a2fe3cdd9e6068d21a34e6ff4b1b86e6"
 ```
 
 Now if we read from the contract:
+(Wait until transaction has confirmed).
 
 ```
 > smcontract.getMyEntry();
