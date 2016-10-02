@@ -17,7 +17,7 @@
 /**
  * 
  * 
- * LValues for use in the expresison compiler.
+ * LValues for use in the expression compiler.
  */
 
 #pragma once

@@ -23,9 +23,12 @@
 #include <libsolidity/codegen/CompilerContext.h>
 #include <utility>
 #include <numeric>
+#include <boost/algorithm/string/replace.hpp>
 #include <libsolidity/ast/AST.h>
 #include <libsolidity/codegen/Compiler.h>
 #include <libsolidity/interface/Version.h>
+#include <libsolidity/inlineasm/AsmData.h>
+#include <libsolidity/inlineasm/AsmStack.h>
 
 using namespace std;
 
@@ -67,7 +70,7 @@ void CompilerContext::removeVariable(VariableDeclaration const& _declaration)
 	m_localVariables.erase(&_declaration);
 }
 
-eth::Assembly const& CompilerContext::compiledContract(const ContractDefinition& _contract) const
+ele::Assembly const& CompilerContext::compiledContract(const ContractDefinition& _contract) const
 {
 	auto ret = m_compiledContracts.find(&_contract);
 	solAssert(ret != m_compiledContracts.end(), "Compiled contract not found.");
@@ -79,17 +82,17 @@ bool CompilerContext::isLocalVariable(Declaration const* _declaration) const
 	return !!m_localVariables.count(_declaration);
 }
 
-eth::AssemblyItem CompilerContext::functionEntryLabel(Declaration const& _declaration)
+ele::AssemblyItem CompilerContext::functionEntryLabel(Declaration const& _declaration)
 {
 	return m_functionCompilationQueue.entryLabel(_declaration, *this);
 }
 
-eth::AssemblyItem CompilerContext::functionEntryLabelIfExists(Declaration const& _declaration) const
+ele::AssemblyItem CompilerContext::functionEntryLabelIfExists(Declaration const& _declaration) const
 {
 	return m_functionCompilationQueue.entryLabelIfExists(_declaration);
 }
 
-eth::AssemblyItem CompilerContext::virtualFunctionEntryLabel(FunctionDefinition const& _function)
+ele::AssemblyItem CompilerContext::virtualFunctionEntryLabel(FunctionDefinition const& _function)
 {
 	// Libraries do not allow inheritance and their functions can be inlined, so we should not
 	// search the inheritance hierarchy (which will be the wrong one in case the function
@@ -101,7 +104,7 @@ eth::AssemblyItem CompilerContext::virtualFunctionEntryLabel(FunctionDefinition 
 	return virtualFunctionEntryLabel(_function, m_inheritanceHierarchy.begin());
 }
 
-eth::AssemblyItem CompilerContext::superFunctionEntryLabel(FunctionDefinition const& _function, ContractDefinition const& _base)
+ele::AssemblyItem CompilerContext::superFunctionEntryLabel(FunctionDefinition const& _function, ContractDefinition const& _base)
 {
 	solAssert(!m_inheritanceHierarchy.empty(), "No inheritance hierarchy set.");
 	return virtualFunctionEntryLabel(_function, superContract(_base));
@@ -157,9 +160,9 @@ pair<u256, unsigned> CompilerContext::storageLocationOfVariable(const Declaratio
 	return it->second;
 }
 
-CompilerContext& CompilerContext::appendJump(eth::AssemblyItem::JumpType _jumpType)
+CompilerContext& CompilerContext::appendJump(ele::AssemblyItem::JumpType _jumpType)
 {
-	eth::AssemblyItem item(Instruction::JUMP);
+	ele::AssemblyItem item(Instruction::JUMP);
 	item.setJumpType(_jumpType);
 	return *this << item;
 }
@@ -172,14 +175,59 @@ void CompilerContext::resetVisitedNodes(ASTNode const* _node)
 	updateSourceLocation();
 }
 
+void CompilerContext::appendInlineAssembly(
+	string const& _assembly,
+	vector<string> const& _localVariables,
+	map<string, string> const& _replacements
+)
+{
+	string replacedAssembly;
+	string const* assembly = &_assembly;
+	if (!_replacements.empty())
+	{
+		replacedAssembly = _assembly;
+		for (auto const& replacement: _replacements)
+			replacedAssembly = boost::algorithm::replace_all_copy(replacedAssembly, replacement.first, replacement.second);
+		assembly = &replacedAssembly;
+	}
+
+	unsigned startStackHeight = stackHeight();
+	auto identifierAccess = [&](
+		assembly::Identifier const& _identifier,
+		ele::Assembly& _assembly,
+		assembly::CodeGenerator::IdentifierContext _context
+	) {
+		auto it = std::find(_localVariables.begin(), _localVariables.end(), _identifier.name);
+		if (it == _localVariables.end())
+			return false;
+		unsigned stackDepth = _localVariables.end() - it;
+		int stackDiff = _assembly.deposit() - startStackHeight + stackDepth;
+		if (stackDiff < 1 || stackDiff > 16)
+			BOOST_THROW_EXCEPTION(
+				CompilerError() <<
+				errinfo_comment("Stack too deep, try removing local variables.")
+			);
+		if (_context == assembly::CodeGenerator::IdentifierContext::RValue)
+			_assembly.append(dupInstruction(stackDiff));
+		else
+		{
+			_assembly.append(swapInstruction(stackDiff));
+			_assembly.append(Instruction::POP);
+		}
+		return true;
+	};
+
+	solAssert(assembly::InlineAssemblyStack().parseAndAssemble(*assembly, m_asm, identifierAccess), "");
+}
+
 void CompilerContext::injectVersionStampIntoSub(size_t _subIndex)
 {
-	eth::Assembly& sub = m_asm.sub(_subIndex);
+	ele::Assembly& sub = m_asm.sub(_subIndex);
 	sub.injectStart(Instruction::POP);
 	sub.injectStart(fromBigEndian<u256>(binaryVersion()));
 }
 
-eth::AssemblyItem CompilerContext::virtualFunctionEntryLabel(
+ele::AssemblyItem CompilerContext::virtualFunctionEntryLabel(
 	FunctionDefinition const& _function,
 	vector<ContractDefinition const*>::const_iterator _searchStart
 )
@@ -212,7 +260,7 @@ void CompilerContext::updateSourceLocation()
 	m_asm.setSourceLocation(m_visitedNodes.empty() ? SourceLocation() : m_visitedNodes.top()->location());
 }
 
-eth::AssemblyItem CompilerContext::FunctionCompilationQueue::entryLabel(
+ele::AssemblyItem CompilerContext::FunctionCompilationQueue::entryLabel(
 	Declaration const& _declaration,
 	CompilerContext& _context
 )
@@ -220,7 +268,7 @@ eth::AssemblyItem CompilerContext::FunctionCompilationQueue::entryLabel(
 	auto res = m_entryLabels.find(&_declaration);
 	if (res == m_entryLabels.end())
 	{
-		eth::AssemblyItem tag(_context.newTag());
+		ele::AssemblyItem tag(_context.newTag());
 		m_entryLabels.insert(make_pair(&_declaration, tag));
 		m_functionsToCompile.push(&_declaration);
 		return tag.tag();
@@ -230,10 +278,10 @@ eth::AssemblyItem CompilerContext::FunctionCompilationQueue::entryLabel(
 
 }
 
-eth::AssemblyItem CompilerContext::FunctionCompilationQueue::entryLabelIfExists(Declaration const& _declaration) const
+ele::AssemblyItem CompilerContext::FunctionCompilationQueue::entryLabelIfExists(Declaration const& _declaration) const
 {
 	auto res = m_entryLabels.find(&_declaration);
-	return res == m_entryLabels.end() ? eth::AssemblyItem(eth::UndefinedItem) : res->second.tag();
+	return res == m_entryLabels.end() ? ele::AssemblyItem(ele::UndefinedItem) : res->second.tag();
 }
 
 Declaration const* CompilerContext::FunctionCompilationQueue::nextFunctionToCompile() const

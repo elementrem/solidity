@@ -15,7 +15,7 @@
 	along with cpp-elementrem.  If not, see <http://www.gnu.org/licenses/>.
 */
 /** @file Compiler.h
- * 
+ * @author Gav Wood <i@gavwood.com>
  * 
  */
 
@@ -27,7 +27,7 @@
 
 namespace dev
 {
-namespace eth
+namespace ele
 {
 
 std::string parseLLL(std::string const& _src);

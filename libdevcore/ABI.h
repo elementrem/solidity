@@ -15,7 +15,7 @@
 	along with cpp-elementrem.  If not, see <http://www.gnu.org/licenses/>.
 */
 /** @file ABI.h
- * 
+ * @author Gav Wood <i@gavwood.com>
  * 
  */
 
@@ -28,7 +28,7 @@
 
 namespace dev
 {
-namespace eth
+namespace ele
 {
 
 inline string32 toString32(std::string const& _s)

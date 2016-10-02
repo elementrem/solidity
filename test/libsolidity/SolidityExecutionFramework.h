@@ -33,6 +33,7 @@
 
 #include <libsolidity/interface/CompilerStack.h>
 #include <libsolidity/interface/Exceptions.h>
+#include <libsolidity/interface/SourceReferenceFormatter.h>
 
 namespace dev
 {
@@ -43,11 +44,11 @@ namespace solidity
 	using Address = h160;
 
 	// The various denominations; here for ease of use where needed within code.
-	static const u256 ether = exp10<18>();
+	static const u256 element = exp10<18>();
 	static const u256 finney = exp10<15>();
 	static const u256 szabo = exp10<12>();
 	static const u256 shannon = exp10<9>();
-	static const u256 wei = exp10<0>();
+	static const u256 mey = exp10<0>();
 
 namespace test
 {
@@ -66,10 +67,22 @@ public:
 		std::map<std::string, Address> const& _libraryAddresses = std::map<std::string, Address>()
 	)
 	{
-		m_compiler.reset(false, m_addStandardSources);
-		m_compiler.addSource("", _sourceCode);
-		ETH_TEST_REQUIRE_NO_THROW(m_compiler.compile(m_optimize, m_optimizeRuns), "Compiling contract failed");
-		eth::LinkerObject obj = m_compiler.object(_contractName);
+		// Silence compiler version warning
+		std::string sourceCode = "pragma solidity >=0.0;\n" + _sourceCode;
+		m_compiler.reset(false);
+		m_compiler.addSource("", sourceCode);
+		if (!m_compiler.compile(m_optimize, m_optimizeRuns))
+		{
+			for (auto const& error: m_compiler.errors())
+				SourceReferenceFormatter::printExceptionInformation(
+					std::cerr,
+					*error,
+					(error->type() == Error::Type::Warning) ? "Warning" : "Error",
+					[&](std::string const& _sourceName) -> solidity::Scanner const& { return m_compiler.scanner(_sourceName); }
+				);
+			BOOST_ERROR("Compiling contract failed");
+		}
+		ele::LinkerObject obj = m_compiler.object(_contractName);
 		obj.link(_libraryAddresses);
 		BOOST_REQUIRE(obj.linkReferences.empty());
 		sendMessage(obj.bytecode + _arguments, true, _value);
@@ -215,16 +228,16 @@ public:
 			bytes const& ret = call(_name + "(string)", u256(0x20), _arg.length(), _arg);
 			BOOST_REQUIRE(ret.size() == 0x20);
 			BOOST_CHECK(std::count(ret.begin(), ret.begin() + 12, 0) == 12);
-			return eth::abiOut<u160>(ret);
+			return ele::abiOut<u160>(ret);
 		}
 
 		std::string callAddressReturnsString(std::string const& _name, u160 const& _arg)
 		{
 			bytesConstRef ret = ref(call(_name + "(address)", _arg));
 			BOOST_REQUIRE(ret.size() >= 0x20);
-			u256 offset = eth::abiOut<u256>(ret);
+			u256 offset = ele::abiOut<u256>(ret);
 			BOOST_REQUIRE_EQUAL(offset, 0x20);
-			u256 len = eth::abiOut<u256>(ret);
+			u256 len = ele::abiOut<u256>(ret);
 			BOOST_REQUIRE_EQUAL(ret.size(), ((len + 0x1f) / 0x20) * 0x20);
 			return ret.cropped(0, size_t(len)).toString();
 		}
@@ -233,7 +246,7 @@ public:
 		{
 			bytes const& ret = call(_name + "(string)", u256(0x20), _arg.length(), _arg);
 			BOOST_REQUIRE(ret.size() == 0x20);
-			return eth::abiOut<h256>(ret);
+			return ele::abiOut<h256>(ret);
 		}
 
 	private:
@@ -258,7 +271,7 @@ private:
 
 protected:
 	void sendMessage(bytes const& _data, bool _isCreation, u256 const& _value = 0);
-	void sendEther(Address const& _to, u256 const& _value);
+	void sendElement(Address const& _to, u256 const& _value);
 	size_t currentTimestamp();
 
 	/// @returns the (potentially newly created) _ith address.
@@ -279,7 +292,6 @@ protected:
 
 	size_t m_optimizeRuns = 200;
 	bool m_optimize = false;
-	bool m_addStandardSources = false;
 	dev::solidity::CompilerStack m_compiler;
 	Address m_sender;
 	Address m_contractAddress;

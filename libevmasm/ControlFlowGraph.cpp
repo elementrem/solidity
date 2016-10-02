@@ -32,7 +32,7 @@
 
 using namespace std;
 using namespace dev;
-using namespace dev::eth;
+using namespace dev::ele;
 
 BlockId::BlockId(u256 const& _id):
 	m_id(unsigned(_id))

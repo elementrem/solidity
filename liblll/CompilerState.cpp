@@ -15,7 +15,7 @@
 	along with cpp-elementrem.  If not, see <http://www.gnu.org/licenses/>.
 */
 /** @file CompilerState.cpp
- * 
+ * @author Gav Wood <i@gavwood.com>
  * 
  */
 
@@ -24,7 +24,7 @@
 
 using namespace std;
 using namespace dev;
-using namespace dev::eth;
+using namespace dev::ele;
 
 CompilerState::CompilerState()
 {

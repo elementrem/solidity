@@ -25,7 +25,7 @@
 
 namespace dev
 {
-namespace eth
+namespace ele
 {
 
 struct AssemblyException: virtual Exception {};

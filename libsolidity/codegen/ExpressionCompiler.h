@@ -31,7 +31,7 @@
 #include <libsolidity/interface/Utils.h>
 
 namespace dev {
-namespace eth
+namespace ele
 {
 class AssemblyItem; // forward
 }

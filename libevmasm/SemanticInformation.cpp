@@ -26,7 +26,7 @@
 
 using namespace std;
 using namespace dev;
-using namespace dev::eth;
+using namespace dev::ele;
 
 bool SemanticInformation::breaksCSEAnalysisBlock(AssemblyItem const& _item)
 {

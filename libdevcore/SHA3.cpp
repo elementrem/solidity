@@ -15,7 +15,7 @@
 	along with cpp-elementrem.  If not, see <http://www.gnu.org/licenses/>.
 */
 /** @file SHA3.cpp
- * 
+ * @author Gav Wood <i@gavwood.com>
  * 
  */
 

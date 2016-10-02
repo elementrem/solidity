@@ -32,7 +32,6 @@
 #pragma warning(pop)
 #endif
 
-#include <libdevcore/Hash.h>
 #include <test/libsolidity/SolidityExecutionFramework.h>
 
 using namespace std;
@@ -50,8 +49,10 @@ namespace
 static char const* registrarCode = R"DELIMITER(
 //sol FixedFeeRegistrar
 // Simple global registrar with fixed-fee reservations.
-// @authors:
+// 
+//   
 
+pragma solidity ^0.4.0;
 
 contract Registrar {
 	event Changed(string indexed name);
@@ -70,9 +71,9 @@ contract FixedFeeRegistrar is Registrar {
 		address owner;
 	}
 
-	modifier onlyrecordowner(string _name) { if (m_record(_name).owner == msg.sender) _ }
+	modifier onlyrecordowner(string _name) { if (m_record(_name).owner == msg.sender) _; }
 
-	function reserve(string _name) {
+	function reserve(string _name) payable {
 		Record rec = m_record(_name);
 		if (rec.owner == 0 && msg.value >= c_fee) {
 			rec.owner = msg.sender;
@@ -118,7 +119,7 @@ contract FixedFeeRegistrar is Registrar {
 	function m_record(string _name) constant internal returns (Record storage o_record) {
 		return m_recordData[uint(sha3(_name)) / 8];
 	}
-	uint constant c_fee = 69 ether;
+	uint constant c_fee = 69 element;
 }
 )DELIMITER";
 
@@ -132,9 +133,9 @@ protected:
 		if (!s_compiledRegistrar)
 		{
 			m_optimize = true;
-			m_compiler.reset(false, m_addStandardSources);
+			m_compiler.reset(false);
 			m_compiler.addSource("", registrarCode);
-			ETH_TEST_REQUIRE_NO_THROW(m_compiler.compile(m_optimize, m_optimizeRuns), "Compiling contract failed");
+			ELE_TEST_REQUIRE_NO_THROW(m_compiler.compile(m_optimize, m_optimizeRuns), "Compiling contract failed");
 			s_compiledRegistrar.reset(new bytes(m_compiler.object("FixedFeeRegistrar").bytecode));
 		}
 		sendMessage(*s_compiledRegistrar, true);
@@ -174,7 +175,7 @@ BOOST_AUTO_TEST_CASE(double_reserve)
 	BOOST_REQUIRE(callContractFunctionWithValue("reserve(string)", m_fee, encodeDyn(name)) == encodeArgs());
 	BOOST_CHECK(callContractFunction("owner(string)", encodeDyn(name)) == encodeArgs(h256(account(0), h256::AlignRight)));
 
-	sendEther(account(1), 100 * ether);
+	sendElement(account(1), 100 * element);
 	m_sender = account(1);
 	BOOST_REQUIRE(callContractFunctionWithValue("reserve(string)", m_fee, encodeDyn(name)) == encodeArgs());
 	BOOST_CHECK(callContractFunction("owner(string)", encodeDyn(name)) == encodeArgs(h256(account(0), h256::AlignRight)));
@@ -191,7 +192,7 @@ BOOST_AUTO_TEST_CASE(properties)
 	{
 		addr++;
 		m_sender = account(0);
-		sendEther(account(count), 100 * ether);
+		sendElement(account(count), 100 * element);
 		m_sender = account(count);
 		Address owner = m_sender;
 		// setting by sender works
@@ -206,7 +207,7 @@ BOOST_AUTO_TEST_CASE(properties)
 		count++;
 		// but not by someone else
 		m_sender = account(0);
-		sendEther(account(count), 100 * ether);
+		sendElement(account(count), 100 * element);
 		m_sender = account(count);
 		BOOST_CHECK(callContractFunction("owner(string)", encodeDyn(name)) == encodeArgs(h256(owner, h256::AlignRight)));
 		BOOST_CHECK(callContractFunction("setAddr(string,address)", u256(0x40), addr + 1, u256(name.length()), name) == encodeArgs());

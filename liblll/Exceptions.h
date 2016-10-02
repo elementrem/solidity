@@ -15,7 +15,7 @@
 	along with cpp-elementrem.  If not, see <http://www.gnu.org/licenses/>.
 */
 /** @file Exceptions.h
- * 
+ * @author Gav Wood <i@gavwood.com>
  * 
  */
 
@@ -25,7 +25,7 @@
 
 namespace dev
 {
-namespace eth
+namespace ele
 {
 
 /// Compile a Low-level Lisp-like Language program into EVM-code.

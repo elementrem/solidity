@@ -15,7 +15,7 @@
 	along with cpp-elementrem.  If not, see <http://www.gnu.org/licenses/>.
 */
 /** @file CommonData.h
- * 
+ * @author Gav Wood <i@gavwood.com>
  * 
  *
  * Shared algorithms and data types.

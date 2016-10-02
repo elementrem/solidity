@@ -31,15 +31,15 @@ namespace dev
 {
 
 #if defined(_MSC_VER)
-#define ETH_FUNC __FUNCSIG__
+#define ELE_FUNC __FUNCSIG__
 #elif defined(__GNUC__)
-#define ETH_FUNC __PRETTY_FUNCTION__
+#define ELE_FUNC __PRETTY_FUNCTION__
 #else
-#define ETH_FUNC __func__
+#define ELE_FUNC __func__
 #endif
 
-#define asserts(A) ::dev::assertAux(A, #A, __LINE__, __FILE__, ETH_FUNC)
-#define assertsEqual(A, B) ::dev::assertEqualAux(A, B, #A, #B, __LINE__, __FILE__, ETH_FUNC)
+#define asserts(A) ::dev::assertAux(A, #A, __LINE__, __FILE__, ELE_FUNC)
+#define assertsEqual(A, B) ::dev::assertEqualAux(A, B, #A, #B, __LINE__, __FILE__, ELE_FUNC)
 
 inline bool assertAux(bool _a, char const* _aStr, unsigned _line, char const* _file, char const* _func)
 {
@@ -47,7 +47,7 @@ inline bool assertAux(bool _a, char const* _aStr, unsigned _line, char const* _f
 	if (!ret)
 	{
 		std::cerr << "Assertion failed:" << _aStr << " [func=" << _func << ", line=" << _line << ", file=" << _file << "]" << std::endl;
-#if ETH_DEBUG
+#if ELE_DEBUG
 		debug_break();
 #endif
 	}
@@ -62,7 +62,7 @@ inline bool assertEqualAux(A const& _a, B const& _b, char const* _aStr, char con
 	{
 		std::cerr << "Assertion failed: " << _aStr << " == " << _bStr << " [func=" << _func << ", line=" << _line << ", file=" << _file << "]" << std::endl;
 		std::cerr << "   Fail equality: " << _a << "==" << _b << std::endl;
-#if ETH_DEBUG
+#if ELE_DEBUG
 		debug_break();
 #endif
 	}
@@ -73,7 +73,7 @@ inline bool assertEqualAux(A const& _a, B const& _b, char const* _aStr, char con
 /// Use it as assertThrow(1 == 1, ExceptionType, "Mathematics is wrong.");
 /// Do NOT supply an exception object as the second parameter.
 #define assertThrow(_condition, _ExceptionType, _description) \
-	::dev::assertThrowAux<_ExceptionType>(_condition, _description, __LINE__, __FILE__, ETH_FUNC)
+	::dev::assertThrowAux<_ExceptionType>(!!(_condition), _description, __LINE__, __FILE__, ELE_FUNC)
 
 using errinfo_comment = boost::error_info<struct tag_comment, std::string>;
 
@@ -94,18 +94,6 @@ inline void assertThrowAux(
 			::boost::throw_file(_file) <<
 			::boost::throw_line(_line)
 		);
-}
-
-template <class _ExceptionType>
-inline void assertThrowAux(
-	void const* _pointer,
-	::std::string const& _errorDescription,
-	unsigned _line,
-	char const* _file,
-	char const* _function
-)
-{
-	assertThrowAux<_ExceptionType>(_pointer != nullptr, _errorDescription, _line, _file, _function);
 }
 
 }

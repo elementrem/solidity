@@ -45,15 +45,17 @@ namespace
 {
 
 pair<ASTPointer<SourceUnit>, std::shared_ptr<Error::Type const>>
-parseAnalyseAndReturnError(string const& _source, bool _reportWarnings = false)
+parseAnalyseAndReturnError(string const& _source, bool _reportWarnings = false, bool _insertVersionPragma = true)
 {
+	// Silence compiler version warning
+	string source = _insertVersionPragma ? "pragma solidity >=0.0;\n" + _source : _source;
 	ErrorList errors;
 	Parser parser(errors);
 	ASTPointer<SourceUnit> sourceUnit;
 	// catch exceptions for a transition period
 	try
 	{
-		sourceUnit = parser.parse(std::make_shared<Scanner>(CharStream(_source)));
+		sourceUnit = parser.parse(std::make_shared<Scanner>(CharStream(source)));
 		if(!sourceUnit)
 			return make_pair(sourceUnit, nullptr);
 
@@ -443,10 +445,10 @@ BOOST_AUTO_TEST_CASE(function_no_implementation)
 	char const* text = "contract test {\n"
 		"  function functionName(bytes32 input) returns (bytes32 out);\n"
 		"}\n";
-	ETH_TEST_REQUIRE_NO_THROW(sourceUnit = parseAndAnalyse(text), "Parsing and name Resolving failed");
+	ELE_TEST_REQUIRE_NO_THROW(sourceUnit = parseAndAnalyse(text), "Parsing and name Resolving failed");
 	std::vector<ASTPointer<ASTNode>> nodes = sourceUnit->nodes();
-	ContractDefinition* contract = dynamic_cast<ContractDefinition*>(nodes[0].get());
-	BOOST_CHECK(contract);
+	ContractDefinition* contract = dynamic_cast<ContractDefinition*>(nodes[1].get());
+	BOOST_REQUIRE(contract);
 	BOOST_CHECK(!contract->annotation().isFullyImplemented);
 	BOOST_CHECK(!contract->definedFunctions()[0]->isImplemented());
 }
@@ -458,14 +460,14 @@ BOOST_AUTO_TEST_CASE(abstract_contract)
 		contract base { function foo(); }
 		contract derived is base { function foo() {} }
 		)";
-	ETH_TEST_REQUIRE_NO_THROW(sourceUnit = parseAndAnalyse(text), "Parsing and name Resolving failed");
+	ELE_TEST_REQUIRE_NO_THROW(sourceUnit = parseAndAnalyse(text), "Parsing and name Resolving failed");
 	std::vector<ASTPointer<ASTNode>> nodes = sourceUnit->nodes();
-	ContractDefinition* base = dynamic_cast<ContractDefinition*>(nodes[0].get());
-	ContractDefinition* derived = dynamic_cast<ContractDefinition*>(nodes[1].get());
-	BOOST_CHECK(base);
+	ContractDefinition* base = dynamic_cast<ContractDefinition*>(nodes[1].get());
+	ContractDefinition* derived = dynamic_cast<ContractDefinition*>(nodes[2].get());
+	BOOST_REQUIRE(base);
 	BOOST_CHECK(!base->annotation().isFullyImplemented);
 	BOOST_CHECK(!base->definedFunctions()[0]->isImplemented());
-	BOOST_CHECK(derived);
+	BOOST_REQUIRE(derived);
 	BOOST_CHECK(derived->annotation().isFullyImplemented);
 	BOOST_CHECK(derived->definedFunctions()[0]->isImplemented());
 }
@@ -477,10 +479,10 @@ BOOST_AUTO_TEST_CASE(abstract_contract_with_overload)
 		contract base { function foo(bool); }
 		contract derived is base { function foo(uint) {} }
 		)";
-	ETH_TEST_REQUIRE_NO_THROW(sourceUnit = parseAndAnalyse(text), "Parsing and name Resolving failed");
+	ELE_TEST_REQUIRE_NO_THROW(sourceUnit = parseAndAnalyse(text), "Parsing and name Resolving failed");
 	std::vector<ASTPointer<ASTNode>> nodes = sourceUnit->nodes();
-	ContractDefinition* base = dynamic_cast<ContractDefinition*>(nodes[0].get());
-	ContractDefinition* derived = dynamic_cast<ContractDefinition*>(nodes[1].get());
+	ContractDefinition* base = dynamic_cast<ContractDefinition*>(nodes[1].get());
+	ContractDefinition* derived = dynamic_cast<ContractDefinition*>(nodes[2].get());
 	BOOST_REQUIRE(base);
 	BOOST_CHECK(!base->annotation().isFullyImplemented);
 	BOOST_REQUIRE(derived);
@@ -511,7 +513,7 @@ BOOST_AUTO_TEST_CASE(abstract_contract_constructor_args_optional)
 			function foo() {}
 		}
 		)";
-	ETH_TEST_REQUIRE_NO_THROW(parseAndAnalyse(text), "Parsing and name resolving failed");
+	ELE_TEST_REQUIRE_NO_THROW(parseAndAnalyse(text), "Parsing and name resolving failed");
 }
 
 BOOST_AUTO_TEST_CASE(abstract_contract_constructor_args_not_provided)
@@ -525,11 +527,11 @@ BOOST_AUTO_TEST_CASE(abstract_contract_constructor_args_not_provided)
 			function foo() {}
 		}
 		)";
-	ETH_TEST_REQUIRE_NO_THROW(sourceUnit = parseAndAnalyse(text), "Parsing and name resolving failed");
+	ELE_TEST_REQUIRE_NO_THROW(sourceUnit = parseAndAnalyse(text), "Parsing and name resolving failed");
 	std::vector<ASTPointer<ASTNode>> nodes = sourceUnit->nodes();
-	BOOST_CHECK_EQUAL(nodes.size(), 3);
-	ContractDefinition* derived = dynamic_cast<ContractDefinition*>(nodes[2].get());
-	BOOST_CHECK(derived);
+	BOOST_CHECK_EQUAL(nodes.size(), 4);
+	ContractDefinition* derived = dynamic_cast<ContractDefinition*>(nodes[3].get());
+	BOOST_REQUIRE(derived);
 	BOOST_CHECK(!derived->annotation().isFullyImplemented);
 }
 
@@ -551,11 +553,11 @@ BOOST_AUTO_TEST_CASE(implement_abstract_via_constructor)
 		contract base { function foo(); }
 		contract foo is base { function foo() {} }
 	)";
-	ETH_TEST_REQUIRE_NO_THROW(sourceUnit = parseAndAnalyse(text), "Parsing and name resolving failed");
+	ELE_TEST_REQUIRE_NO_THROW(sourceUnit = parseAndAnalyse(text), "Parsing and name resolving failed");
 	std::vector<ASTPointer<ASTNode>> nodes = sourceUnit->nodes();
-	BOOST_CHECK_EQUAL(nodes.size(), 2);
-	ContractDefinition* derived = dynamic_cast<ContractDefinition*>(nodes[1].get());
-	BOOST_CHECK(derived);
+	BOOST_CHECK_EQUAL(nodes.size(), 3);
+	ContractDefinition* derived = dynamic_cast<ContractDefinition*>(nodes[2].get());
+	BOOST_REQUIRE(derived);
 	BOOST_CHECK(!derived->annotation().isFullyImplemented);
 }
 
@@ -567,7 +569,7 @@ BOOST_AUTO_TEST_CASE(function_canonical_signature)
 					   "    ret = arg1 + arg2;\n"
 					   "  }\n"
 					   "}\n";
-	ETH_TEST_REQUIRE_NO_THROW(sourceUnit = parseAndAnalyse(text), "Parsing and name Resolving failed");
+	ELE_TEST_REQUIRE_NO_THROW(sourceUnit = parseAndAnalyse(text), "Parsing and name Resolving failed");
 	for (ASTPointer<ASTNode> const& node: sourceUnit->nodes())
 		if (ContractDefinition* contract = dynamic_cast<ContractDefinition*>(node.get()))
 		{
@@ -584,7 +586,7 @@ BOOST_AUTO_TEST_CASE(function_canonical_signature_type_aliases)
 					   "    ret = 5;\n"
 					   "  }\n"
 					   "}\n";
-	ETH_TEST_REQUIRE_NO_THROW(sourceUnit = parseAndAnalyse(text), "Parsing and name Resolving failed");
+	ELE_TEST_REQUIRE_NO_THROW(sourceUnit = parseAndAnalyse(text), "Parsing and name Resolving failed");
 	for (ASTPointer<ASTNode> const& node: sourceUnit->nodes())
 		if (ContractDefinition* contract = dynamic_cast<ContractDefinition*>(node.get()))
 		{
@@ -607,7 +609,7 @@ BOOST_AUTO_TEST_CASE(function_external_types)
 			   ret = 5;
 			}
 		})";
-	ETH_TEST_REQUIRE_NO_THROW(sourceUnit = parseAndAnalyse(text), "Parsing and name Resolving failed");
+	ELE_TEST_REQUIRE_NO_THROW(sourceUnit = parseAndAnalyse(text), "Parsing and name Resolving failed");
 	for (ASTPointer<ASTNode> const& node: sourceUnit->nodes())
 		if (ContractDefinition* contract = dynamic_cast<ContractDefinition*>(node.get()))
 		{
@@ -629,7 +631,7 @@ BOOST_AUTO_TEST_CASE(enum_external_type)
 				ret = 5;
 			}
 		})";
-	ETH_TEST_REQUIRE_NO_THROW(sourceUnit = parseAndAnalyse(text), "Parsing and name Resolving failed");
+	ELE_TEST_REQUIRE_NO_THROW(sourceUnit = parseAndAnalyse(text), "Parsing and name Resolving failed");
 	for (ASTPointer<ASTNode> const& node: sourceUnit->nodes())
 		if (ContractDefinition* contract = dynamic_cast<ContractDefinition*>(node.get()))
 		{
@@ -857,8 +859,8 @@ BOOST_AUTO_TEST_CASE(function_modifier_invocation)
 	char const* text = R"(
 		contract B {
 			function f() mod1(2, true) mod2("0123456") { }
-			modifier mod1(uint a, bool b) { if (b) _ }
-			modifier mod2(bytes7 a) { while (a == "1234567") _ }
+			modifier mod1(uint a, bool b) { if (b) _; }
+			modifier mod2(bytes7 a) { while (a == "1234567") _; }
 		}
 	)";
 	BOOST_CHECK(success(text));
@@ -869,7 +871,7 @@ BOOST_AUTO_TEST_CASE(invalid_function_modifier_type)
 	char const* text = R"(
 		contract B {
 			function f() mod1(true) { }
-			modifier mod1(uint a) { if (a > 0) _ }
+			modifier mod1(uint a) { if (a > 0) _; }
 		}
 	)";
 	BOOST_CHECK(expectError(text) == Error::Type::TypeError);
@@ -880,8 +882,8 @@ BOOST_AUTO_TEST_CASE(function_modifier_invocation_parameters)
 	char const* text = R"(
 		contract B {
 			function f(uint8 a) mod1(a, true) mod2(r) returns (bytes7 r) { }
-			modifier mod1(uint a, bool b) { if (b) _ }
-			modifier mod2(bytes7 a) { while (a == "1234567") _ }
+			modifier mod1(uint a, bool b) { if (b) _; }
+			modifier mod2(bytes7 a) { while (a == "1234567") _; }
 		}
 	)";
 	BOOST_CHECK(success(text));
@@ -892,7 +894,7 @@ BOOST_AUTO_TEST_CASE(function_modifier_invocation_local_variables)
 	char const* text = R"(
 		contract B {
 			function f() mod(x) { uint x = 7; }
-			modifier mod(uint a) { if (a > 0) _ }
+			modifier mod(uint a) { if (a > 0) _; }
 		}
 	)";
 	BOOST_CHECK(success(text));
@@ -901,8 +903,8 @@ BOOST_AUTO_TEST_CASE(function_modifier_invocation_local_variables)
 BOOST_AUTO_TEST_CASE(legal_modifier_override)
 {
 	char const* text = R"(
-		contract A { modifier mod(uint a) {} }
-		contract B is A { modifier mod(uint a) {} }
+		contract A { modifier mod(uint a) { _; } }
+		contract B is A { modifier mod(uint a) { _; } }
 	)";
 	BOOST_CHECK(success(text));
 }
@@ -910,8 +912,8 @@ BOOST_AUTO_TEST_CASE(legal_modifier_override)
 BOOST_AUTO_TEST_CASE(illegal_modifier_override)
 {
 	char const* text = R"(
-		contract A { modifier mod(uint a) {} }
-		contract B is A { modifier mod(uint8 a) {} }
+		contract A { modifier mod(uint a) { _; } }
+		contract B is A { modifier mod(uint8 a) { _; } }
 	)";
 	BOOST_CHECK(expectError(text) == Error::Type::TypeError);
 }
@@ -919,8 +921,8 @@ BOOST_AUTO_TEST_CASE(illegal_modifier_override)
 BOOST_AUTO_TEST_CASE(modifier_overrides_function)
 {
 	char const* text = R"(
-		contract A { modifier mod(uint a) {} }
-		contract B is A { function mod(uint a) {} }
+		contract A { modifier mod(uint a) { _; } }
+		contract B is A { function mod(uint a) { } }
 	)";
 	BOOST_CHECK(expectError(text) == Error::Type::TypeError);
 }
@@ -928,8 +930,8 @@ BOOST_AUTO_TEST_CASE(modifier_overrides_function)
 BOOST_AUTO_TEST_CASE(function_overrides_modifier)
 {
 	char const* text = R"(
-		contract A { function mod(uint a) {} }
-		contract B is A { modifier mod(uint a) {} }
+		contract A { function mod(uint a) { } }
+		contract B is A { modifier mod(uint a) { _; } }
 	)";
 	BOOST_CHECK(expectError(text) == Error::Type::TypeError);
 }
@@ -938,8 +940,8 @@ BOOST_AUTO_TEST_CASE(modifier_returns_value)
 {
 	char const* text = R"(
 		contract A {
-			function f(uint a) mod(2) returns (uint r) {}
-			modifier mod(uint a) { return 7; }
+			function f(uint a) mod(2) returns (uint r) { }
+			modifier mod(uint a) { _; return 7; }
 		}
 	)";
 	BOOST_CHECK(expectError(text) == Error::Type::TypeError);
@@ -958,7 +960,7 @@ BOOST_AUTO_TEST_CASE(state_variable_accessors)
 
 	ASTPointer<SourceUnit> source;
 	ContractDefinition const* contract;
-	ETH_TEST_CHECK_NO_THROW(source = parseAndAnalyse(text), "Parsing and Resolving names failed");
+	ELE_TEST_CHECK_NO_THROW(source = parseAndAnalyse(text), "Parsing and Resolving names failed");
 	BOOST_REQUIRE((contract = retrieveContract(source, 0)) != nullptr);
 	FunctionTypePointer function = retrieveFunctionBySignature(contract, "foo()");
 	BOOST_REQUIRE(function && function->hasDeclaration());
@@ -1008,7 +1010,7 @@ BOOST_AUTO_TEST_CASE(private_state_variable)
 
 	ASTPointer<SourceUnit> source;
 	ContractDefinition const* contract;
-	ETH_TEST_CHECK_NO_THROW(source = parseAndAnalyse(text), "Parsing and Resolving names failed");
+	ELE_TEST_CHECK_NO_THROW(source = parseAndAnalyse(text), "Parsing and Resolving names failed");
 	BOOST_CHECK((contract = retrieveContract(source, 0)) != nullptr);
 	FunctionTypePointer function;
 	function = retrieveFunctionBySignature(contract, "foo()");
@@ -1097,6 +1099,37 @@ BOOST_AUTO_TEST_CASE(fallback_function_with_arguments)
 		contract C {
 			uint x;
 			function(uint a) { x = 2; }
+		}
+	)";
+	BOOST_CHECK(expectError(text) == Error::Type::TypeError);
+}
+
+BOOST_AUTO_TEST_CASE(fallback_function_in_library)
+{
+	char const* text = R"(
+		library C {
+			function() {}
+		}
+	)";
+	BOOST_CHECK(expectError(text) == Error::Type::TypeError);
+}
+
+BOOST_AUTO_TEST_CASE(fallback_function_with_return_parameters)
+{
+	char const* text = R"(
+		contract C {
+			function() returns (uint) { }
+		}
+	)";
+	BOOST_CHECK(expectError(text) == Error::Type::TypeError);
+}
+
+BOOST_AUTO_TEST_CASE(fallback_function_with_constant_modifier)
+{
+	char const* text = R"(
+		contract C {
+			uint x;
+			function() constant { x = 2; }
 		}
 	)";
 	BOOST_CHECK(expectError(text) == Error::Type::TypeError);
@@ -1329,7 +1362,7 @@ BOOST_AUTO_TEST_CASE(disallow_declaration_of_void_type)
 	BOOST_CHECK(expectError(sourceCode) == Error::Type::TypeError);
 }
 
-BOOST_AUTO_TEST_CASE(overflow_caused_by_ether_units)
+BOOST_AUTO_TEST_CASE(overflow_caused_by_element_units)
 {
 	char const* sourceCodeFine = R"(
 		contract c {
@@ -1339,13 +1372,13 @@ BOOST_AUTO_TEST_CASE(overflow_caused_by_ether_units)
 			}
 			uint256 a;
 		})";
-	ETH_TEST_CHECK_NO_THROW(parseAndAnalyse(sourceCodeFine),
+	ELE_TEST_CHECK_NO_THROW(parseAndAnalyse(sourceCodeFine),
 		"Parsing and Resolving names failed");
 	char const* sourceCode = R"(
 		contract c {
 			function c ()
 			{
-				 a = 115792089237316195423570985008687907853269984665640564039458 ether;
+				 a = 115792089237316195423570985008687907853269984665640564039458 element;
 			}
 			uint256 a;
 		})";
@@ -1557,7 +1590,7 @@ BOOST_AUTO_TEST_CASE(test_for_bug_override_function_with_bytearray_type)
 			function f(bytes _a) external returns (uint256 r) {r = 42;}
 		}
 		)";
-	ETH_TEST_CHECK_NO_THROW(parseAndAnalyse(sourceCode), "Parsing and Name Resolving failed");
+	ELE_TEST_CHECK_NO_THROW(parseAndAnalyse(sourceCode), "Parsing and Name Resolving failed");
 }
 
 BOOST_AUTO_TEST_CASE(array_with_nonconstant_length)
@@ -1755,7 +1788,7 @@ BOOST_AUTO_TEST_CASE(test_byte_is_alias_of_byte1)
 			bytes arr;
 			function f() { byte a = arr[0];}
 		})";
-	ETH_TEST_REQUIRE_NO_THROW(parseAndAnalyse(text), "Type resolving failed");
+	ELE_TEST_REQUIRE_NO_THROW(parseAndAnalyse(text), "Type resolving failed");
 }
 
 BOOST_AUTO_TEST_CASE(assigning_value_to_const_variable)
@@ -1820,7 +1853,7 @@ BOOST_AUTO_TEST_CASE(assignment_of_nonoverloaded_function)
 			function g() returns(uint) { var x = f; return x(7); }
 		}
 	)";
-	ETH_TEST_REQUIRE_NO_THROW(parseAndAnalyse(sourceCode), "Type resolving failed");
+	ELE_TEST_REQUIRE_NO_THROW(parseAndAnalyse(sourceCode), "Type resolving failed");
 }
 
 BOOST_AUTO_TEST_CASE(assignment_of_overloaded_function)
@@ -3821,6 +3854,170 @@ BOOST_AUTO_TEST_CASE(unused_return_value_delegatecall)
 		}
 	)";
 	BOOST_CHECK(expectError(text, true) == Error::Type::Warning);
+}
+
+BOOST_AUTO_TEST_CASE(modifier_without_underscore)
+{
+	char const* text = R"(
+		contract test {
+			modifier m() {}
+		}
+	)";
+	BOOST_CHECK(expectError(text) == Error::Type::SyntaxError);
+}
+
+BOOST_AUTO_TEST_CASE(payable_in_library)
+{
+	char const* text = R"(
+		library test {
+			function f() payable {}
+		}
+	)";
+	BOOST_CHECK(expectError(text) == Error::Type::TypeError);
+}
+
+BOOST_AUTO_TEST_CASE(payable_external)
+{
+	char const* text = R"(
+		contract test {
+			function f() payable external {}
+		}
+	)";
+	BOOST_CHECK(success(text));
+}
+
+BOOST_AUTO_TEST_CASE(payable_internal)
+{
+	char const* text = R"(
+		contract test {
+			function f() payable internal {}
+		}
+	)";
+	BOOST_CHECK(expectError(text) == Error::Type::TypeError);
+}
+
+BOOST_AUTO_TEST_CASE(payable_private)
+{
+	char const* text = R"(
+		contract test {
+			function f() payable private {}
+		}
+	)";
+	BOOST_CHECK(expectError(text) == Error::Type::TypeError);
+}
+
+BOOST_AUTO_TEST_CASE(illegal_override_payable)
+{
+	char const* text = R"(
+		contract B { function f() payable {} }
+		contract C is B { function f() {} }
+	)";
+	BOOST_CHECK(expectError(text) == Error::Type::TypeError);
+}
+
+BOOST_AUTO_TEST_CASE(illegal_override_payable_nonpayable)
+{
+	char const* text = R"(
+		contract B { function f() {} }
+		contract C is B { function f() payable {} }
+	)";
+	BOOST_CHECK(expectError(text) == Error::Type::TypeError);
+}
+
+BOOST_AUTO_TEST_CASE(payable_constant_conflict)
+{
+	char const* text = R"(
+		contract C { function f() payable constant {} }
+	)";
+	BOOST_CHECK(expectError(text) == Error::Type::TypeError);
+}
+
+BOOST_AUTO_TEST_CASE(calling_payable)
+{
+	char const* text = R"(
+		contract receiver { function pay() payable {} }
+		contract test {
+			funciton f() { (new receiver()).pay.value(10)(); }
+			recevier r = new receiver();
+			function g() { r.pay.value(10)(); }
+		}
+	)";
+	BOOST_CHECK(success(text));
+}
+
+BOOST_AUTO_TEST_CASE(calling_nonpayable)
+{
+	char const* text = R"(
+		contract receiver { function nopay() {} }
+		contract test {
+			function f() { (new receiver()).nopay.value(10)(); }
+		}
+	)";
+	BOOST_CHECK(expectError(text) == Error::Type::TypeError);
+}
+
+BOOST_AUTO_TEST_CASE(non_payable_constructor)
+{
+	char const* text = R"(
+		contract C {
+			function C() { }
+		}
+		contract D {
+			function f() returns (uint) {
+				(new C).value(2)();
+				return 2;
+			}
+		}
+	)";
+	BOOST_CHECK(expectError(text) == Error::Type::TypeError);
+}
+
+BOOST_AUTO_TEST_CASE(warn_nonpresent_pragma)
+{
+	char const* text = "contract C {}";
+	auto sourceAndError = parseAnalyseAndReturnError(text, true, false);
+	BOOST_REQUIRE(!!sourceAndError.second);
+	BOOST_REQUIRE(!!sourceAndError.first);
+	BOOST_CHECK(*sourceAndError.second == Error::Type::Warning);
+}
+
+BOOST_AUTO_TEST_CASE(unsatisfied_version)
+{
+	char const* text = R"(
+		pragma solidity ^99.99.0;
+	)";
+	BOOST_CHECK(expectError(text, true) == Error::Type::SyntaxError);
+}
+
+BOOST_AUTO_TEST_CASE(constant_constructor)
+{
+	char const* text = R"(
+		contract test {
+			function test() constant {}
+		}
+	)";
+	BOOST_CHECK(expectError(text, false) == Error::Type::TypeError);
+}
+
+BOOST_AUTO_TEST_CASE(external_constructor)
+{
+	char const* text = R"(
+		contract test {
+			function test() external {}
+		}
+	)";
+	BOOST_CHECK(expectError(text, false) == Error::Type::TypeError);
+}
+
+BOOST_AUTO_TEST_CASE(invalid_array_as_statement)
+{
+	char const* text = R"(
+		contract test {
+			struct S { uint x; }
+			function test(uint k)  { S[k]; }
+		}
+	)";
+	BOOST_CHECK(expectError(text, false) == Error::Type::TypeError);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

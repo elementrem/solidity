@@ -32,7 +32,6 @@
 #pragma warning(pop)
 #endif
 
-#include <libdevcore/Hash.h>
 #include <test/libsolidity/SolidityExecutionFramework.h>
 
 using namespace std;
@@ -47,12 +46,17 @@ namespace test
 static char const* walletCode = R"DELIMITER(
 //sol Wallet
 // Multi-sig, daily-limited account proxy/wallet.
+// 
+// 
 // inheritable "property" contract that enables methods to be protected by requiring the acquiescence of either a
 // single, or, crucially, each of a number of, designated owners.
 // usage:
 // use modifiers onlyowner (just own owned) or onlymanyowners(hash), whereby the same hash must be provided by
 // some number (specified in constructor) of the set of owners (specified in the constructor, modifiable) before the
 // interior is executed.
+
+pragma solidity ^0.4.0;
+
 contract multiowned {
 
 	// TYPES
@@ -82,14 +86,14 @@ contract multiowned {
 	// simple single-sig function modifier.
 	modifier onlyowner {
 		if (isOwner(msg.sender))
-			_
+			_;
 	}
 	// multi-sig function modifier: the operation must have an intrinsic hash in order
 	// that later attempts can be realised as the same underlying operation and
 	// thus count as confirmations.
 	modifier onlymanyowners(bytes32 _operation) {
 		if (confirmAndCheck(_operation))
-			_
+			_;
 	}
 
 	// METHODS
@@ -277,7 +281,7 @@ contract daylimit is multiowned {
 	// simple modifier for daily limit.
 	modifier limitedDaily(uint _value) {
 		if (underLimit(_value))
-			_
+			_;
 	}
 
 	// METHODS
@@ -374,7 +378,7 @@ contract Wallet is multisig, multiowned, daylimit {
 	}
 
 	// gets called when no other function matches
-	function() {
+	function() payable {
 		// just being sent some cash?
 		if (msg.value > 0)
 			Deposit(msg.sender, msg.value);
@@ -444,9 +448,9 @@ protected:
 		if (!s_compiledWallet)
 		{
 			m_optimize = true;
-			m_compiler.reset(false, m_addStandardSources);
+			m_compiler.reset(false);
 			m_compiler.addSource("", walletCode);
-			ETH_TEST_REQUIRE_NO_THROW(m_compiler.compile(m_optimize, m_optimizeRuns), "Compiling contract failed");
+			ELE_TEST_REQUIRE_NO_THROW(m_compiler.compile(m_optimize, m_optimizeRuns), "Compiling contract failed");
 			s_compiledWallet.reset(new bytes(m_compiler.object("Wallet").bytecode));
 		}
 		bytes args = encodeArgs(u256(0x60), _required, _dailyLimit, u256(_owners.size()), _owners);
@@ -472,13 +476,13 @@ BOOST_AUTO_TEST_CASE(add_owners)
 	BOOST_REQUIRE(callContractFunction("addOwner(address)", h256(account(1), h256::AlignRight)) == encodeArgs());
 	BOOST_REQUIRE(callContractFunction("isOwner(address)", h256(account(1), h256::AlignRight)) == encodeArgs(true));
 	// now let the new owner add someone
-	sendEther(account(1), 10 * ether);
+	sendElement(account(1), 10 * element);
 	m_sender = account(1);
 	BOOST_REQUIRE(callContractFunction("addOwner(address)", h256(0x13)) == encodeArgs());
 	BOOST_REQUIRE(callContractFunction("isOwner(address)", h256(0x13)) == encodeArgs(true));
 	// and check that a non-owner cannot add a new owner
 	m_sender = account(0);
-	sendEther(account(2), 10 * ether);
+	sendElement(account(2), 10 * element);
 	m_sender = account(2);
 	BOOST_REQUIRE(callContractFunction("addOwner(address)", h256(0x20)) == encodeArgs());
 	BOOST_REQUIRE(callContractFunction("isOwner(address)", h256(0x20)) == encodeArgs(false));
@@ -557,17 +561,17 @@ BOOST_AUTO_TEST_CASE(multisig_value_transfer)
 	// check that balance is and stays zero at destination address
 	BOOST_CHECK_EQUAL(balanceAt(Address(0x05)), 0);
 	m_sender = account(0);
-	sendEther(account(1), 10 * ether);
+	sendElement(account(1), 10 * element);
 	m_sender = account(1);
 	auto ophash = callContractFunction("execute(address,uint256,bytes)", h256(0x05), 100, 0x60, 0x00);
 	BOOST_CHECK_EQUAL(balanceAt(Address(0x05)), 0);
 	m_sender = account(0);
-	sendEther(account(2), 10 * ether);
+	sendElement(account(2), 10 * element);
 	m_sender = account(2);
 	callContractFunction("confirm(bytes32)", ophash);
 	BOOST_CHECK_EQUAL(balanceAt(Address(0x05)), 0);
 	m_sender = account(0);
-	sendEther(account(3), 10 * ether);
+	sendElement(account(3), 10 * element);
 	m_sender = account(3);
 	callContractFunction("confirm(bytes32)", ophash);
 	// now it should go through
@@ -588,7 +592,7 @@ BOOST_AUTO_TEST_CASE(revoke_addOwner)
 	BOOST_REQUIRE(callContractFunction("addOwner(address)", h256(0x33)) == encodeArgs());
 	BOOST_REQUIRE(callContractFunction("isOwner(address)", h256(0x33)) == encodeArgs(false));
 	m_sender = account(0);
-	sendEther(account(1), 10 * ether);
+	sendElement(account(1), 10 * element);
 	m_sender = account(1);
 	BOOST_REQUIRE(callContractFunction("addOwner(address)", h256(0x33)) == encodeArgs());
 	BOOST_REQUIRE(callContractFunction("isOwner(address)", h256(0x33)) == encodeArgs(false));
@@ -596,12 +600,12 @@ BOOST_AUTO_TEST_CASE(revoke_addOwner)
 	m_sender = deployer;
 	BOOST_REQUIRE(callContractFunction("revoke(bytes32)", opHash) == encodeArgs());
 	m_sender = account(0);
-	sendEther(account(2), 10 * ether);
+	sendElement(account(2), 10 * element);
 	m_sender = account(2);
 	BOOST_REQUIRE(callContractFunction("addOwner(address)", h256(0x33)) == encodeArgs());
 	BOOST_REQUIRE(callContractFunction("isOwner(address)", h256(0x33)) == encodeArgs(false));
 	m_sender = account(0);
-	sendEther(account(3), 10 * ether);
+	sendElement(account(3), 10 * element);
 	m_sender = account(3);
 	BOOST_REQUIRE(callContractFunction("addOwner(address)", h256(0x33)) == encodeArgs());
 	BOOST_REQUIRE(callContractFunction("isOwner(address)", h256(0x33)) == encodeArgs(true));
@@ -619,24 +623,24 @@ BOOST_AUTO_TEST_CASE(revoke_transaction)
 	Address deployer = m_sender;
 	BOOST_CHECK_EQUAL(balanceAt(Address(0x05)), 0);
 	m_sender = account(0);
-	sendEther(account(1), 10 * ether);
+	sendElement(account(1), 10 * element);
 	m_sender = account(1);
 	auto opHash = callContractFunction("execute(address,uint256,bytes)", h256(0x05), 100, 0x60, 0x00);
 	BOOST_CHECK_EQUAL(balanceAt(Address(0x05)), 0);
 	m_sender = account(0);
-	sendEther(account(2), 10 * ether);
+	sendElement(account(2), 10 * element);
 	m_sender = account(2);
 	callContractFunction("confirm(bytes32)", opHash);
 	BOOST_CHECK_EQUAL(balanceAt(Address(0x05)), 0);
 	m_sender = account(0);
-	sendEther(account(1), 10 * ether);
+	sendElement(account(1), 10 * element);
 	m_sender = account(1);
 	BOOST_REQUIRE(callContractFunction("revoke(bytes32)", opHash) == encodeArgs());
 	m_sender = deployer;
 	callContractFunction("confirm(bytes32)", opHash);
 	BOOST_CHECK_EQUAL(balanceAt(Address(0x05)), 0);
 	m_sender = account(0);
-	sendEther(account(3), 10 * ether);
+	sendElement(account(3), 10 * element);
 	m_sender = account(3);
 	callContractFunction("confirm(bytes32)", opHash);
 	// now it should go through
@@ -657,7 +661,7 @@ BOOST_AUTO_TEST_CASE(daylimit)
 
 	// try to send tx over daylimit
 	BOOST_CHECK_EQUAL(balanceAt(Address(0x05)), 0);
-	sendEther(account(1), 10 * ether);
+	sendElement(account(1), 10 * element);
 	m_sender = account(1);
 	BOOST_REQUIRE(
 		callContractFunction("execute(address,uint256,bytes)", h256(0x05), 150, 0x60, 0x00) !=
@@ -666,7 +670,7 @@ BOOST_AUTO_TEST_CASE(daylimit)
 	BOOST_CHECK_EQUAL(balanceAt(Address(0x05)), 0);
 	// try to send tx under daylimit by stranger
 	m_sender = account(0);
-	sendEther(account(4), 10 * ether);
+	sendElement(account(4), 10 * element);
 	m_sender = account(4);
 	BOOST_REQUIRE(
 		callContractFunction("execute(address,uint256,bytes)", h256(0x05), 90, 0x60, 0x00) ==
@@ -675,7 +679,7 @@ BOOST_AUTO_TEST_CASE(daylimit)
 	BOOST_CHECK_EQUAL(balanceAt(Address(0x05)), 0);
 	// now send below limit by owner
 	m_sender = account(0);
-	sendEther(account(1), 10 * ether);
+	sendElement(account(1), 10 * element);
 	BOOST_REQUIRE(
 		callContractFunction("execute(address,uint256,bytes)", h256(0x05), 90, 0x60, 0x00) ==
 		encodeArgs(u256(0))

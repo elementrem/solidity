@@ -23,7 +23,7 @@
 #include <libdevcore/CommonData.h>
 
 using namespace dev;
-using namespace dev::eth;
+using namespace dev::ele;
 using namespace std;
 
 void LinkerObject::append(LinkerObject const& _other)

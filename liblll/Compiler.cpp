@@ -15,7 +15,7 @@
 	along with cpp-elementrem.  If not, see <http://www.gnu.org/licenses/>.
 */
 /** @file Compiler.cpp
- * 
+ * @author Gav Wood <i@gavwood.com>
  * 
  */
 
@@ -26,9 +26,9 @@
 
 using namespace std;
 using namespace dev;
-using namespace dev::eth;
+using namespace dev::ele;
 
-bytes dev::eth::compileLLL(string const& _src, bool _opt, vector<string>* _errors)
+bytes dev::ele::compileLLL(string const& _src, bool _opt, vector<string>* _errors)
 {
 	try
 	{
@@ -56,7 +56,7 @@ bytes dev::eth::compileLLL(string const& _src, bool _opt, vector<string>* _error
 	return bytes();
 }
 
-std::string dev::eth::compileLLLToAsm(std::string const& _src, bool _opt, std::vector<std::string>* _errors)
+std::string dev::ele::compileLLLToAsm(std::string const& _src, bool _opt, std::vector<std::string>* _errors)
 {
 	try
 	{
@@ -80,7 +80,7 @@ std::string dev::eth::compileLLLToAsm(std::string const& _src, bool _opt, std::v
 	return string();
 }
 
-string dev::eth::parseLLL(string const& _src)
+string dev::ele::parseLLL(string const& _src)
 {
 	sp::utree o;
 	try

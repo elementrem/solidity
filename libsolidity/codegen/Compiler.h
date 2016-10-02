@@ -40,17 +40,17 @@ public:
 
 	void compileContract(
 		ContractDefinition const& _contract,
-		std::map<ContractDefinition const*, eth::Assembly const*> const& _contracts
+		std::map<ContractDefinition const*, ele::Assembly const*> const& _contracts
 	);
 	/// Compiles a contract that uses DELEGATECALL to call into a pre-deployed version of the given
 	/// contract at runtime, but contains the full creation-time code.
 	void compileClone(
 		ContractDefinition const& _contract,
-		std::map<ContractDefinition const*, eth::Assembly const*> const& _contracts
+		std::map<ContractDefinition const*, ele::Assembly const*> const& _contracts
 	);
-	eth::Assembly const& assembly() { return m_context.assembly(); }
-	eth::LinkerObject assembledObject() { return m_context.assembledObject(); }
-	eth::LinkerObject runtimeObject() { return m_context.assembledRuntimeObject(m_runtimeSub); }
+	ele::Assembly const& assembly() { return m_context.assembly(); }
+	ele::LinkerObject assembledObject() { return m_context.assembledObject(); }
+	ele::LinkerObject runtimeObject() { return m_context.assembledRuntimeObject(m_runtimeSub); }
 	/// @arg _sourceCodes is the map of input files to source code strings
 	/// @arg _inJsonFromat shows whether the out should be in Json format
 	Json::Value streamAssembly(std::ostream& _stream, StringMap const& _sourceCodes = StringMap(), bool _inJsonFormat = false) const
@@ -58,13 +58,13 @@ public:
 		return m_context.streamAssembly(_stream, _sourceCodes, _inJsonFormat);
 	}
 	/// @returns Assembly items of the normal compiler context
-	eth::AssemblyItems const& assemblyItems() const { return m_context.assembly().items(); }
+	ele::AssemblyItems const& assemblyItems() const { return m_context.assembly().items(); }
 	/// @returns Assembly items of the runtime compiler context
-	eth::AssemblyItems const& runtimeAssemblyItems() const { return m_context.assembly().sub(m_runtimeSub).items(); }
+	ele::AssemblyItems const& runtimeAssemblyItems() const { return m_context.assembly().sub(m_runtimeSub).items(); }
 
 	/// @returns the entry label of the given function. Might return an AssemblyItem of type
 	/// UndefinedItem if it does not exist yet.
-	eth::AssemblyItem functionEntryLabel(FunctionDefinition const& _function) const;
+	ele::AssemblyItem functionEntryLabel(FunctionDefinition const& _function) const;
 
 private:
 	bool const m_optimize;

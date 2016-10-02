@@ -28,7 +28,7 @@
 
 namespace dev
 {
-namespace eth
+namespace ele
 {
 
 class KnownState;

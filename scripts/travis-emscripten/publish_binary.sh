@@ -33,8 +33,11 @@ set -e
 VER=$(cat CMakeLists.txt | grep 'set(PROJECT_VERSION' | sed -e 's/.*set(PROJECT_VERSION "\(.*\)".*/\1/')
 test -n "$VER"
 VER="v$VER"
-COMMIT=$(git rev-parse --short HEAD)
-DATE=$(date --date="$(git log -1 --date=iso --format=%ad HEAD)" --utc +%F)
+COMMIT=$(git rev-parse --short=8 HEAD)
+DATE=$(date --date="$(git log -1 --date=iso --format=%ad HEAD)" --utc +%Y.%-m.%-d)
+
+# remove leading zeros in components - they are not semver-compatible
+COMMIT=$(echo "$COMMIT" | sed -e 's/^0*//')
 
 ENCRYPTED_KEY_VAR="encrypted_${ENCRYPTION_LABEL}_key"
 ENCRYPTED_IV_VAR="encrypted_${ENCRYPTION_LABEL}_iv"
@@ -52,19 +55,20 @@ git config user.email "chris@elementrem.org"
 git checkout -B gh-pages origin/gh-pages
 git clean -f -d -x
 # We only want one release per day and we do not want to push the same commit twice.
-if ls ./bin/soljson-"$VER-$DATE"-*.js ./bin/soljson-*-"$COMMIT.js" > /dev/null
+if ls ./bin/soljson-"$VER-nightly.$DATE"-*.js || ls ./bin/soljson-*"commit.$COMMIT.js"
 then
-  true
-else
-  # This file is assumed to be the product of the build_emscripten.sh script.
-  cp ../soljson.js ./bin/"soljson-$VER-$DATE-$COMMIT.js"
-  ./update-index.sh
-  cd bin
-  LATEST=$(ls -r soljson-v* | head -n 1)
-  cp "$LATEST" soljson-latest.js
-  cp soljson-latest.js ../soljson.js
-  git add .
-  git add ../soljson.js
-  git commit -m "Added compiler version $LATEST"
-  git push origin gh-pages
+  echo "Not publishing, we already published this version today."
+  exit 0
 fi
+
+# This file is assumed to be the product of the build_emscripten.sh script.
+cp ../soljson.js ./bin/"soljson-$VER-nightly.$DATE+commit.$COMMIT.js"
+node ./update
+cd bin
+LATEST=$(ls -r soljson-v* | head -n 1)
+cp "$LATEST" soljson-latest.js
+cp soljson-latest.js ../soljson.js
+git add .
+git add ../soljson.js
+git commit -m "Added compiler version $LATEST"
+git push origin gh-pages

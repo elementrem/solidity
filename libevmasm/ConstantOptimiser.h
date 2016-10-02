@@ -27,7 +27,7 @@
 
 namespace dev
 {
-namespace eth
+namespace ele
 {
 
 class AssemblyItem;

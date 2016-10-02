@@ -15,7 +15,7 @@
 	along with cpp-elementrem.  If not, see <http://www.gnu.org/licenses/>.
 */
 /** @file Assembly.cpp
- * 
+ * @author Gav Wood <i@gavwood.com>
  * 
  */
 
@@ -29,7 +29,7 @@
 #include <json/json.h>
 using namespace std;
 using namespace dev;
-using namespace dev::eth;
+using namespace dev::ele;
 
 void Assembly::append(Assembly const& _a)
 {
@@ -123,7 +123,7 @@ ostream& Assembly::streamAsm(ostream& _out, string const& _prefix, StringMap con
 			_out << "  " << instructionInfo(i.instruction()).name  << "\t" << i.getJumpTypeAsString();
 			break;
 		case Push:
-			_out << "  PUSH " << hex << i.data();
+			_out << "  PUSH" << dec << max<unsigned>(1, dev::bytesRequired(i.data())) << " 0x" << hex << i.data();
 			break;
 		case PushString:
 			_out << "  PUSH \"" << m_strings.at((h256)i.data()) << "\"";

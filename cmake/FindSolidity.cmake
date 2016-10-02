@@ -6,7 +6,7 @@
 #  Solidity_XXX_LIBRARIES, the libraries needed to use solidity.
 #  SOLIDITY_INCLUDE_DIRS
 
-include(EthUtils)
+include(EleUtils)
 set(LIBS solidity;lll;solevmasm)
 
 set(Solidity_INCLUDE_DIRS "${SOL_DIR}")
@@ -40,7 +40,7 @@ else()
 				PATH_SUFFIXES "lib${l}/Debug" 
 				NO_DEFAULT_PATH
 			)
-			eth_check_library_link(Solidity_${L})
+			ele_check_library_link(Solidity_${L})
 		endif()
 	endforeach()
 

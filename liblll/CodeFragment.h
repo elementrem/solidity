@@ -15,7 +15,7 @@
 	along with cpp-elementrem.  If not, see <http://www.gnu.org/licenses/>.
 */
 /** @file CodeFragment.h
- * 
+ * @author Gav Wood <i@gavwood.com>
  * 
  */
 
@@ -31,7 +31,7 @@ namespace sp = boost::spirit;
 
 namespace dev
 {
-namespace eth
+namespace ele
 {
 
 struct CompilerState;

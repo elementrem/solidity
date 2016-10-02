@@ -96,13 +96,13 @@ public:
 
 	static RPCSession& instance(std::string const& _path);
 
-	std::string eth_getCode(std::string const& _address, std::string const& _blockNumber);
-	std::string eth_call(TransactionData const& _td, std::string const& _blockNumber);
-	TransactionReceipt eth_getTransactionReceipt(std::string const& _transactionHash);
-	std::string eth_sendTransaction(TransactionData const& _transactionData);
-	std::string eth_sendTransaction(std::string const& _transaction);
-	std::string eth_getBalance(std::string const& _address, std::string const& _blockNumber);
-	std::string eth_getStorageRoot(std::string const& _address, std::string const& _blockNumber);
+	std::string ele_getCode(std::string const& _address, std::string const& _blockNumber);
+	std::string ele_call(TransactionData const& _td, std::string const& _blockNumber);
+	TransactionReceipt ele_getTransactionReceipt(std::string const& _transactionHash);
+	std::string ele_sendTransaction(TransactionData const& _transactionData);
+	std::string ele_sendTransaction(std::string const& _transaction);
+	std::string ele_getBalance(std::string const& _address, std::string const& _blockNumber);
+	std::string ele_getStorageRoot(std::string const& _address, std::string const& _blockNumber);
 	std::string personal_newAccount(std::string const& _password);
 	void personal_unlockAccount(std::string const& _address, std::string const& _password, int _duration);
 	void test_setChainParams(std::vector<std::string> const& _accounts);
@@ -124,6 +124,8 @@ private:
 
 	IPCSocket m_ipcSocket;
 	size_t m_rpcSequence = 1;
+	unsigned m_sleepTime = 10;
+	unsigned m_successfulMineRuns = 0;
 
 	std::vector<std::string> m_accounts;
 };

@@ -15,7 +15,7 @@
 	along with cpp-elementrem.  If not, see <http://www.gnu.org/licenses/>.
 */
 /** @file Assembly.h
- * 
+ * @author Gav Wood <i@gavwood.com>
  * 
  */
 
@@ -26,7 +26,7 @@
 
 namespace dev
 {
-namespace eth
+namespace ele
 {
 
 /**

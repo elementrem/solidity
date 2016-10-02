@@ -29,7 +29,7 @@
 
 using namespace std;
 using namespace dev;
-using namespace dev::eth;
+using namespace dev::ele;
 
 vector<AssemblyItem> CommonSubexpressionEliminator::getOptimizedItems()
 {

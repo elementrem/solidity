@@ -15,13 +15,14 @@
 	along with cpp-elementrem.  If not, see <http://www.gnu.org/licenses/>.
 */
 /** @file main.cpp
- * 
+ * @author Gav Wood <i@gavwood.com>
  * 
  * Elementrem client.
  */
 
 #include <fstream>
 #include <iostream>
+#include <clocale>
 #include <liblll/Compiler.h>
 #include <libdevcore/CommonIO.h>
 #include <libdevcore/CommonData.h>
@@ -29,7 +30,7 @@
 using namespace std;
 using namespace dev;
 using namespace dev::solidity;
-using namespace dev::eth;
+using namespace dev::ele;
 
 void help()
 {
@@ -48,14 +49,38 @@ void help()
 void version()
 {
 	cout << "LLLC, the Lovely Little Language Compiler " << endl;
-	cout << "(c) 2016." << endl;
+	cout << "  By Gav Wood, (c) 2014." << endl;
 	exit(0);
+}
+
+/*
+The equivalent of setlocale(LC_ALL, "C") is called before any user code is run.
+If the user has an invalid environment setting then it is possible for the call
+to set locale to fail, so there are only two possible actions, the first is to
+throw a runtime exception and cause the program to quit (default behaviour),
+or the second is to modify the environment to something sensible (least
+surprising behaviour).
+
+The follow code produces the least surprising behaviour. It will use the user
+specified default locale if it is valid, and if not then it will modify the
+environment the process is running in to use a sensible default. This also means
+that users do not need to install language packs for their OS.
+*/
+void setDefaultOrCLocale()
+{
+#if __unix__
+	if (!std::setlocale(LC_ALL, ""))
+	{
+		setenv("LC_ALL", "C", 1);
+	}
+#endif
 }
 
 enum Mode { Binary, Hex, Assembly, ParseTree, Disassemble };
 
 int main(int argc, char** argv)
 {
+	setDefaultOrCLocale();
 	unsigned optimise = 1;
 	string infile;
 	Mode mode = Hex;

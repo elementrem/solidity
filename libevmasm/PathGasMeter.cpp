@@ -25,7 +25,7 @@
 
 using namespace std;
 using namespace dev;
-using namespace dev::eth;
+using namespace dev::ele;
 
 PathGasMeter::PathGasMeter(AssemblyItems const& _items):
 	m_items(_items)
