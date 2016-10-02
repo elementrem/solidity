@@ -24,7 +24,7 @@
 #include <libevmasm/GasMeter.h>
 using namespace std;
 using namespace dev;
-using namespace dev::eth;
+using namespace dev::ele;
 
 unsigned ConstantOptimisationMethod::optimiseConstants(
 	bool _isCreation,

@@ -141,6 +141,7 @@ namespace solidity
 	\
 	/* Keywords */                                                     \
 	K(Anonymous, "anonymous", 0)                                       \
+	K(As, "as", 0)                                                     \
 	K(Assembly, "assembly", 0)                                         \
 	K(Break, "break", 0)                                               \
 	K(Const, "constant", 0)                                            \
@@ -154,6 +155,7 @@ namespace solidity
 	K(External, "external", 0)                                         \
 	K(For, "for", 0)                                                   \
 	K(Function, "function", 0)                                         \
+	K(Hex, "hex", 0)                                                   \
 	K(If, "if", 0)                                                     \
 	K(Indexed, "indexed", 0)                                           \
 	K(Internal, "internal", 0)                                         \
@@ -164,28 +166,30 @@ namespace solidity
 	K(Memory, "memory", 0)                                             \
 	K(Modifier, "modifier", 0)                                         \
 	K(New, "new", 0)                                                   \
+	K(Payable, "payable", 0)                                           \
 	K(Public, "public", 0)                                             \
+	K(Pragma, "pragma", 0)                                             \
 	K(Private, "private", 0)                                           \
 	K(Return, "return", 0)                                             \
 	K(Returns, "returns", 0)                                           \
 	K(Storage, "storage", 0)                                           \
 	K(Struct, "struct", 0)                                             \
 	K(Throw, "throw", 0)                                               \
+	K(Using, "using", 0)                                               \
 	K(Var, "var", 0)                                                   \
 	K(While, "while", 0)                                               \
 	\
-	/* Ether subdenominations */                                       \
-	K(SubWei, "wei", 0)                                                \
+	/* Element subdenominations */                                       \
+	K(SubMey, "mey", 0)                                                \
 	K(SubSzabo, "szabo", 0)                                            \
 	K(SubFinney, "finney", 0)                                          \
-	K(SubEther, "ether", 0)                                            \
+	K(SubElement, "element", 0)                                            \
 	K(SubSecond, "seconds", 0)                                         \
 	K(SubMinute, "minutes", 0)                                         \
 	K(SubHour, "hours", 0)                                             \
 	K(SubDay, "days", 0)                                               \
 	K(SubWeek, "weeks", 0)                                             \
 	K(SubYear, "years", 0)                                             \
-	K(After, "after", 0)                                               \
 	/* type keywords*/                                                 \
 	K(Int, "int", 0)                                                   \
 	K(UInt, "uint", 0)                                                 \
@@ -215,21 +219,25 @@ namespace solidity
 	T(Identifier, NULL, 0)                                             \
 	\
 	/* Keywords reserved for future use. */                            \
-	K(As, "as", 0)                                                     \
+	K(Abstract, "abstract", 0)                                         \
+	K(After, "after", 0)                                               \
 	K(Case, "case", 0)                                                 \
 	K(Catch, "catch", 0)                                               \
 	K(Final, "final", 0)                                               \
 	K(In, "in", 0)                                                     \
 	K(Inline, "inline", 0)                                             \
+	K(Interface, "interface", 0)                                       \
 	K(Let, "let", 0)                                                   \
 	K(Match, "match", 0)                                               \
 	K(Of, "of", 0)                                                     \
+	K(Pure, "pure", 0)                                                 \
 	K(Relocatable, "relocatable", 0)                                   \
+	K(Static, "static", 0)                                             \
 	K(Switch, "switch", 0)                                             \
 	K(Try, "try", 0)                                                   \
 	K(Type, "type", 0)                                                 \
 	K(TypeOf, "typeof", 0)                                             \
-	K(Using, "using", 0)                                               \
+	K(View, "view", 0)                                                 \
 	/* Illegal token - not able to scan. */                            \
 	T(Illegal, "ILLEGAL", 0)                                           \
 	\
@@ -277,14 +285,15 @@ public:
 
 	static bool isBitOp(Value op) { return (BitOr <= op && op <= BitAnd) || op == BitNot; }
 	static bool isBooleanOp(Value op) { return (Or <= op && op <= And) || op == Not; }
-	static bool isUnaryOp(Value op) { return (Not <= op && op <= Delete) || op == Add || op == Sub || op == After; }
+	static bool isUnaryOp(Value op) { return (Not <= op && op <= Delete) || op == Add || op == Sub; }
 	static bool isCountOp(Value op) { return op == Inc || op == Dec; }
 	static bool isShiftOp(Value op) { return (SHL <= op) && (op <= SHR); }
 	static bool isVisibilitySpecifier(Value op) { return isVariableVisibilitySpecifier(op) || op == External; }
 	static bool isVariableVisibilitySpecifier(Value op) { return op == Public || op == Private || op == Internal; }
 	static bool isLocationSpecifier(Value op) { return op == Memory || op == Storage; }
-	static bool isEtherSubdenomination(Value op) { return op == SubWei || op == SubSzabo || op == SubFinney || op == SubEther; }
+	static bool isElementSubdenomination(Value op) { return op == SubMey || op == SubSzabo || op == SubFinney || op == SubElement; }
 	static bool isTimeSubdenomination(Value op) { return op == SubSecond || op == SubMinute || op == SubHour || op == SubDay || op == SubWeek || op == SubYear; }
+	static bool isReservedKeyword(Value op) { return (Abstract <= op && op <= TypeOf); }
 
 	// @returns a string corresponding to the JS token string
 	// (.e., "<" for the token LT) or NULL if the token doesn't

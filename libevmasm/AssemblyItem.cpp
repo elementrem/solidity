@@ -15,7 +15,7 @@
 	along with cpp-elementrem.  If not, see <http://www.gnu.org/licenses/>.
 */
 /** @file Assembly.cpp
- * 
+ * @author Gav Wood <i@gavwood.com>
  * 
  */
 
@@ -24,7 +24,7 @@
 
 using namespace std;
 using namespace dev;
-using namespace dev::eth;
+using namespace dev::ele;
 
 unsigned AssemblyItem::bytesRequired(unsigned _addressLength) const
 {
@@ -88,7 +88,7 @@ string AssemblyItem::getJumpTypeAsString() const
 	}
 }
 
-ostream& dev::eth::operator<<(ostream& _out, AssemblyItem const& _item)
+ostream& dev::ele::operator<<(ostream& _out, AssemblyItem const& _item)
 {
 	switch (_item.type())
 	{

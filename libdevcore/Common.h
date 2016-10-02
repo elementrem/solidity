@@ -15,7 +15,7 @@
 	along with cpp-elementrem.  If not, see <http://www.gnu.org/licenses/>.
 */
 /** @file Common.h
- * 
+ * @author Gav Wood <i@gavwood.com>
  * 
  *
  * Very common stuff (i.e. that every other header needs except vector_ref.h).
@@ -23,7 +23,7 @@
 
 #pragma once
 
-// way to many unsigned to size_t warnings in 32 bit build
+// way too many unsigned to size_t warnings in 32 bit build
 #ifdef _M_IX86
 #pragma warning(disable:4244)
 #endif

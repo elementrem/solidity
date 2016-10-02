@@ -1,6 +1,6 @@
 #
 # this function requires the following variables to be specified:
-# ETH_VERSION
+# ELE_VERSION
 # PROJECT_NAME
 # PROJECT_VERSION
 # PROJECT_COPYRIGHT_YEAR
@@ -14,17 +14,17 @@
 # ICON
 #
 
-macro(eth_add_executable EXECUTABLE)
+macro(ele_add_executable EXECUTABLE)
 	set (extra_macro_args ${ARGN})
 	set (options)
 	set (one_value_args ICON)
 	set (multi_value_args UI_RESOURCES WIN_RESOURCES)
-	cmake_parse_arguments (ETH_ADD_EXECUTABLE "${options}" "${one_value_args}" "${multi_value_args}" "${extra_macro_args}")
+	cmake_parse_arguments (ELE_ADD_EXECUTABLE "${options}" "${one_value_args}" "${multi_value_args}" "${extra_macro_args}")
 
 	if (APPLE)
 
-		add_executable(${EXECUTABLE} MACOSX_BUNDLE ${SRC_LIST} ${HEADERS} ${ETH_ADD_EXECUTABLE_UI_RESOURCES})
-		set(PROJECT_VERSION "${ETH_VERSION}")
+		add_executable(${EXECUTABLE} MACOSX_BUNDLE ${SRC_LIST} ${HEADERS} ${ELE_ADD_EXECUTABLE_UI_RESOURCES})
+		set(PROJECT_VERSION "${ELE_VERSION}")
 		set(MACOSX_BUNDLE_INFO_STRING "${PROJECT_NAME} ${PROJECT_VERSION}")
 		set(MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_NAME} ${PROJECT_VERSION}")
 		set(MACOSX_BUNDLE_LONG_VERSION_STRING "${PROJECT_NAME} ${PROJECT_VERSION}")
@@ -32,18 +32,18 @@ macro(eth_add_executable EXECUTABLE)
 		set(MACOSX_BUNDLE_COPYRIGHT "${PROJECT_COPYRIGHT_YEAR} ${PROJECT_VENDOR}")
 		set(MACOSX_BUNDLE_GUI_IDENTIFIER "${PROJECT_DOMAIN_SECOND}.${PROJECT_DOMAIN_FIRST}")
 		set(MACOSX_BUNDLE_BUNDLE_NAME ${EXECUTABLE})
-		set(MACOSX_BUNDLE_ICON_FILE ${ETH_ADD_EXECUTABLE_ICON})
+		set(MACOSX_BUNDLE_ICON_FILE ${ELE_ADD_EXECUTABLE_ICON})
 		set_target_properties(${EXECUTABLE} PROPERTIES MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/ElementremMacOSXBundleInfo.plist.in")
 		set_source_files_properties(${EXECUTABLE} PROPERTIES MACOSX_PACKAGE_LOCATION MacOS)
 		set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/${MACOSX_BUNDLE_ICON_FILE}.icns" PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
 
 	else ()
-		add_executable(${EXECUTABLE} ${ETH_ADD_EXECUTABLE_UI_RESOURCES}  ${ETH_ADD_EXECUTABLE_WIN_RESOURCES} ${SRC_LIST} ${HEADERS})
+		add_executable(${EXECUTABLE} ${ELE_ADD_EXECUTABLE_UI_RESOURCES}  ${ELE_ADD_EXECUTABLE_WIN_RESOURCES} ${SRC_LIST} ${HEADERS})
 	endif()
 
 endmacro()
 
-macro(eth_simple_add_executable EXECUTABLE)
+macro(ele_simple_add_executable EXECUTABLE)
 	add_executable(${EXECUTABLE} ${SRC_LIST} ${HEADERS})
 
 	# Apple does not support statically linked binaries on OS X.   That means
@@ -73,7 +73,7 @@ macro(eth_simple_add_executable EXECUTABLE)
 	endif()
 endmacro()
 
-macro(eth_copy_dll EXECUTABLE DLL)
+macro(ele_copy_dll EXECUTABLE DLL)
 	# dlls must be unsubstitud list variable (without ${}) in format
 	# optimized;path_to_dll.dll;debug;path_to_dlld.dll
 	if(DEFINED MSVC)
@@ -86,19 +86,19 @@ macro(eth_copy_dll EXECUTABLE DLL)
 			-DDLL_DEBUG="${DLL_DEBUG}"
 			-DCONF="$<CONFIGURATION>"
 			-DDESTINATION="${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}"
-			-P "${ETH_SCRIPTS_DIR}/copydlls.cmake"
+			-P "${ELE_SCRIPTS_DIR}/copydlls.cmake"
 		)
 	endif()
 endmacro()
 
-macro(eth_copy_dlls EXECUTABLE)
+macro(ele_copy_dlls EXECUTABLE)
 	foreach(dll ${ARGN})
-		eth_copy_dll(${EXECUTABLE} ${dll})
+		ele_copy_dll(${EXECUTABLE} ${dll})
 	endforeach(dll)
 endmacro()
 
 
-macro(eth_install_executable EXECUTABLE)
+macro(ele_install_executable EXECUTABLE)
 
 	if (APPLE)
 
@@ -133,7 +133,7 @@ macro(eth_install_executable EXECUTABLE)
 
 endmacro()
 
-macro (eth_name KEY VALUE)
+macro (ele_name KEY VALUE)
 	if (NOT (APPLE OR WIN32))
 		string(TOLOWER ${VALUE} LVALUE )
 		set(${KEY} ${LVALUE})

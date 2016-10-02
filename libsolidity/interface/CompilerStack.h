@@ -39,7 +39,7 @@
 namespace dev
 {
 
-namespace eth
+namespace ele
 {
 class Assembly;
 class AssemblyItem;
@@ -63,8 +63,7 @@ enum class DocumentationType: uint8_t
 {
 	NatspecUser = 1,
 	NatspecDev,
-	ABIInterface,
-	ABISolidityInterface
+	ABIInterface
 };
 
 /**
@@ -86,14 +85,13 @@ public:
 
 	/// Creates a new compiler stack.
 	/// @param _readFile callback to used to read files for import statements. Should return
-	/// @param _addStandardSources Adds standard sources if @a _addStandardSources.
-	explicit CompilerStack(bool _addStandardSources = true, ReadFileCallback const& _readFile = ReadFileCallback());
+	explicit CompilerStack(ReadFileCallback const& _readFile = ReadFileCallback());
 
 	/// Sets path remappings in the format "context:prefix=target"
 	void setRemappings(std::vector<std::string> const& _remappings);
 
 	/// Resets the compiler to a state where the sources are not parsed or even removed.
-	void reset(bool _keepSources = false, bool _addStandardSources = true);
+	void reset(bool _keepSources = false);
 
 	/// Adds a source object (e.g. file) to the parser. After this, parse has to be called again.
 	/// @returns true if a source object by the name already existed and was replaced.
@@ -130,18 +128,18 @@ public:
 	std::string const& formalTranslation() const { return m_formalTranslation; }
 
 	/// @returns the assembled object for a contract.
-	eth::LinkerObject const& object(std::string const& _contractName = "") const;
+	ele::LinkerObject const& object(std::string const& _contractName = "") const;
 	/// @returns the runtime object for the contract.
-	eth::LinkerObject const& runtimeObject(std::string const& _contractName = "") const;
+	ele::LinkerObject const& runtimeObject(std::string const& _contractName = "") const;
 	/// @returns the bytecode of a contract that uses an already deployed contract via DELEGATECALL.
 	/// The returned bytes will contain a sequence of 20 bytes of the format "XXX...XXX" which have to
 	/// substituted by the actual address. Note that this sequence starts end ends in three X
 	/// characters but can contain anything in between.
-	eth::LinkerObject const& cloneObject(std::string const& _contractName = "") const;
+	ele::LinkerObject const& cloneObject(std::string const& _contractName = "") const;
 	/// @returns normal contract assembly items
-	eth::AssemblyItems const* assemblyItems(std::string const& _contractName = "") const;
+	ele::AssemblyItems const* assemblyItems(std::string const& _contractName = "") const;
 	/// @returns runtime contract assembly items
-	eth::AssemblyItems const* runtimeAssemblyItems(std::string const& _contractName = "") const;
+	ele::AssemblyItems const* runtimeAssemblyItems(std::string const& _contractName = "") const;
 	/// @returns the string that provides a mapping between bytecode and sourcecode or a nullptr
 	/// if the contract does not (yet) have bytecode.
 	std::string const* sourceMapping(std::string const& _contractName = "") const;
@@ -167,9 +165,6 @@ public:
 	/// @returns a string representing the contract interface in JSON.
 	/// Prerequisite: Successful call to parse or compile.
 	std::string const& interface(std::string const& _contractName = "") const;
-	/// @returns a string representing the contract interface in Solidity.
-	/// Prerequisite: Successful call to parse or compile.
-	std::string const& solidityInterface(std::string const& _contractName = "") const;
 	/// @returns a string representing the contract's documentation in JSON.
 	/// Prerequisite: Successful call to parse or compile.
 	/// @param type The type of the documentation to get.
@@ -215,11 +210,10 @@ private:
 	{
 		ContractDefinition const* contract = nullptr;
 		std::shared_ptr<Compiler> compiler;
-		eth::LinkerObject object;
-		eth::LinkerObject runtimeObject;
-		eth::LinkerObject cloneObject;
+		ele::LinkerObject object;
+		ele::LinkerObject runtimeObject;
+		ele::LinkerObject cloneObject;
 		mutable std::unique_ptr<std::string const> interface;
-		mutable std::unique_ptr<std::string const> solidityInterface;
 		mutable std::unique_ptr<std::string const> userDocumentation;
 		mutable std::unique_ptr<std::string const> devDocumentation;
 		mutable std::unique_ptr<std::string const> sourceMapping;
@@ -242,13 +236,13 @@ private:
 		bool _optimize,
 		unsigned _runs,
 		ContractDefinition const& _contract,
-		std::map<ContractDefinition const*, eth::Assembly const*>& _compiledContracts
+		std::map<ContractDefinition const*, ele::Assembly const*>& _compiledContracts
 	);
 
 	Contract const& contract(std::string const& _contractName = "") const;
 	Source const& source(std::string const& _sourceName = "") const;
 
-	std::string computeSourceMapping(eth::AssemblyItems const& _items) const;
+	std::string computeSourceMapping(ele::AssemblyItems const& _items) const;
 
 	struct Remapping
 	{

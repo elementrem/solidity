@@ -101,7 +101,7 @@ __attribute__((gnu_inline, always_inline))
 static void __inline__ debug_break(void)
 {
 	if (HAVE_TRAP_INSTRUCTION) {
-#if defined(ETH_EMSCRIPTEN)
+#if defined(ELE_EMSCRIPTEN)
 		asm("debugger");
 #else
 		trap_instruction();

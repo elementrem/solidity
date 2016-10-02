@@ -33,7 +33,7 @@
 #include <libsolidity/analysis/TypeChecker.h>
 
 using namespace std;
-using namespace dev::eth;
+using namespace dev::ele;
 
 namespace dev
 {
@@ -45,7 +45,7 @@ namespace test
 namespace
 {
 
-eth::AssemblyItems compileContract(const string& _sourceCode)
+ele::AssemblyItems compileContract(const string& _sourceCode)
 {
 	ErrorList errors;
 	Parser parser(errors);
@@ -114,8 +114,8 @@ BOOST_AUTO_TEST_CASE(location_test)
 	shared_ptr<string const> n = make_shared<string>("source");
 	AssemblyItems items = compileContract(sourceCode);
 	vector<SourceLocation> locations =
-		vector<SourceLocation>(17, SourceLocation(2, 75, n)) +
-		vector<SourceLocation>(28, SourceLocation(20, 72, n)) +
+		vector<SourceLocation>(18, SourceLocation(2, 75, n)) +
+		vector<SourceLocation>(31, SourceLocation(20, 72, n)) +
 		vector<SourceLocation>{SourceLocation(42, 51, n), SourceLocation(65, 67, n)} +
 		vector<SourceLocation>(4, SourceLocation(58, 67, n)) +
 		vector<SourceLocation>(3, SourceLocation(20, 72, n));

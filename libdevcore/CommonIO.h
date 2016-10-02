@@ -15,7 +15,7 @@
 	along with cpp-elementrem.  If not, see <http://www.gnu.org/licenses/>.
 */
 /** @file CommonIO.h
- * 
+ * @author Gav Wood <i@gavwood.com>
  * 
  *
  * File & stream I/O routines.

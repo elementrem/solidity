@@ -15,7 +15,7 @@
 	along with cpp-elementrem.  If not, see <http://www.gnu.org/licenses/>.
 */
 /** @file FixedHash.h
- * 
+ * @author Gav Wood <i@gavwood.com>
  * 
  *
  * The FixedHash fixed-size "hash" container type.

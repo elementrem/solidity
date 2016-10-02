@@ -15,7 +15,7 @@
 	along with cpp-elementrem.  If not, see <http://www.gnu.org/licenses/>.
 */
 /** @file CodeFragment.cpp
- * 
+ * @author Gav Wood <i@gavwood.com>
  * 
  */
 
@@ -34,7 +34,7 @@
 #include "Parser.h"
 using namespace std;
 using namespace dev;
-using namespace dev::eth;
+using namespace dev::ele;
 namespace qi = boost::spirit::qi;
 namespace px = boost::phoenix;
 namespace sp = boost::spirit;

@@ -15,7 +15,7 @@
 	along with cpp-elementrem.  If not, see <http://www.gnu.org/licenses/>.
 */
 /** @file EVMSchedule.h
- * 
+ * @author Gav <i@gavwood.com>
  * 
  * 
  */

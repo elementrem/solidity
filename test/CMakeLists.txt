@@ -24,9 +24,9 @@ endforeach(file)
 
 file(GLOB HEADERS "*.h" "*/*.h")
 set(EXECUTABLE soltest)
-eth_simple_add_executable(${EXECUTABLE} ${SRC_LIST} ${HEADERS})
+ele_simple_add_executable(${EXECUTABLE} ${SRC_LIST} ${HEADERS})
 
-eth_use(${EXECUTABLE} REQUIRED Solidity::solidity)
+ele_use(${EXECUTABLE} REQUIRED Solidity::solidity)
 
 include_directories(BEFORE ..)
 target_link_libraries(${EXECUTABLE} ${Boost_UNIT_TEST_FRAMEWORK_LIBRARIES})

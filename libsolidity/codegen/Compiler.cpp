@@ -30,7 +30,7 @@ using namespace dev::solidity;
 
 void Compiler::compileContract(
 	ContractDefinition const& _contract,
-	std::map<const ContractDefinition*, eth::Assembly const*> const& _contracts
+	std::map<const ContractDefinition*, ele::Assembly const*> const& _contracts
 )
 {
 	ContractCompiler runtimeCompiler(m_runtimeContext, m_optimize);
@@ -51,7 +51,7 @@ void Compiler::compileContract(
 
 void Compiler::compileClone(
 	ContractDefinition const& _contract,
-	map<ContractDefinition const*, eth::Assembly const*> const& _contracts
+	map<ContractDefinition const*, ele::Assembly const*> const& _contracts
 )
 {
 	ContractCompiler cloneCompiler(m_context, m_optimize);
@@ -61,7 +61,7 @@ void Compiler::compileClone(
 		m_context.optimise(m_optimizeRuns);
 }
 
-eth::AssemblyItem Compiler::functionEntryLabel(FunctionDefinition const& _function) const
+ele::AssemblyItem Compiler::functionEntryLabel(FunctionDefinition const& _function) const
 {
 	return m_runtimeContext.functionEntryLabelIfExists(_function);
 }

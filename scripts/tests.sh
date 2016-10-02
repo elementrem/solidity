@@ -32,12 +32,12 @@ set -e
 REPO_ROOT=$(pwd)
 
 # This conditional is only needed because we don't have a working Homebrew
-# install for `eth` at the time of writing, so we unzip the ZIP file locally
+# install for `ele` at the time of writing, so we unzip the ZIP file locally
 # instead.  This will go away soon.
 if [[ "$OSTYPE" == "darwin"* ]]; then
-    ETH_PATH="$REPO_ROOT/eth"
+    ELE_PATH="$REPO_ROOT/ele"
 else
-    ETH_PATH="eth"
+    ELE_PATH="ele"
 fi
 
 # This trailing ampersand directs the shell to run the command in the background,
@@ -45,17 +45,17 @@ fi
 # asynchronously. The shell will immediately return the return status of 0 for
 # true and continue as normal, either processing further commands in a script
 # or returning the cursor focus back to the user in a Linux terminal.
-$ETH_PATH --test -d /tmp/test &
+$ELE_PATH --test -d /tmp/test &
 
 # Wait until the IPC endpoint is available.  That won't be available instantly.
 # The node needs to get a little way into its startup sequence before the IPC
 # is available and is ready for the unit-tests to start talking to it.
-while [ ! -S /tmp/test/geth.ipc ]; do sleep 2; done
+while [ ! -S /tmp/test/gele.ipc ]; do sleep 2; done
 
 # And then run the Solidity unit-tests, pointing to that IPC endpoint.
-"$REPO_ROOT"/build/test/soltest --ipc /tmp/test/geth.ipc
+"$REPO_ROOT"/build/test/soltest -- --ipcpath /tmp/test/gele.ipc
 ERROR_CODE=$?
-pkill eth || true
+pkill ele || true
 sleep 4
-pgrep eth && pkill -9 eth || true
+pgrep ele && pkill -9 ele || true
 exit $ERROR_CODE

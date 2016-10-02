@@ -32,7 +32,7 @@
 
 using namespace std;
 using namespace dev;
-using namespace dev::eth;
+using namespace dev::ele;
 
 
 bool ExpressionClasses::Expression::operator<(ExpressionClasses::Expression const& _other) const

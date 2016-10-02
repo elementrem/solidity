@@ -24,7 +24,6 @@
 #include <tuple>
 #include <boost/test/unit_test.hpp>
 #include <libdevcore/ABI.h>
-#include <libdevcore/Hash.h>
 #include <test/libsolidity/SolidityExecutionFramework.h>
 
 using namespace std;
@@ -40,7 +39,7 @@ namespace
 {
 
 static char const* registrarCode = R"DELIMITER(
-//sol
+pragma solidity ^0.4.0;
 
 contract NameRegister {
 	function addr(string _name) constant returns (address o_owner);
@@ -116,11 +115,6 @@ contract GlobalRegistrar is Registrar, AuctionSystem {
 		// TODO: Populate with hall-of-fame.
 	}
 
-	function() {
-		// prevent people from just sending funds to the registrar
-		throw;
-	}
-
 	function onAuctionEnd(string _name) internal {
 		var auction = m_auctions[_name];
 		var record = m_toRecord[_name];
@@ -131,15 +125,13 @@ contract GlobalRegistrar is Registrar, AuctionSystem {
 		if (previousOwner != 0) {
 			if (!record.owner.send(auction.sumOfBids - auction.highestBid / 100))
 				throw;
-		}
-		else
-		{
+		} else {
 			if (!auction.highestBidder.send(auction.highestBid - auction.secondHighestBid))
 				throw;
 		}
 	}
 
-	function reserve(string _name) external {
+	function reserve(string _name) external payable {
 		if (bytes(_name).length == 0)
 			throw;
 		bool needAuction = requiresAuction(_name);
@@ -148,9 +140,7 @@ contract GlobalRegistrar is Registrar, AuctionSystem {
 			if (now < m_toRecord[_name].renewalDate)
 				throw;
 			bid(_name, msg.sender, msg.value);
-		}
-		else
-		{
+		} else {
 			Record record = m_toRecord[_name];
 			if (record.owner != 0)
 				throw;
@@ -163,7 +153,7 @@ contract GlobalRegistrar is Registrar, AuctionSystem {
 		return bytes(_name).length < c_freeBytes;
 	}
 
-	modifier onlyrecordowner(string _name) { if (m_toRecord[_name].owner == msg.sender) _ }
+	modifier onlyrecordowner(string _name) { if (m_toRecord[_name].owner == msg.sender) _; }
 
 	function transfer(string _name, address _newOwner) onlyrecordowner(_name) {
 		m_toRecord[_name].owner = _newOwner;
@@ -231,9 +221,9 @@ protected:
 		if (!s_compiledRegistrar)
 		{
 			m_optimize = true;
-			m_compiler.reset(false, m_addStandardSources);
+			m_compiler.reset(false);
 			m_compiler.addSource("", registrarCode);
-			ETH_TEST_REQUIRE_NO_THROW(m_compiler.compile(m_optimize, m_optimizeRuns), "Compiling contract failed");
+			ELE_TEST_REQUIRE_NO_THROW(m_compiler.compile(m_optimize, m_optimizeRuns), "Compiling contract failed");
 			s_compiledRegistrar.reset(new bytes(m_compiler.object("GlobalRegistrar").bytecode));
 		}
 		sendMessage(*s_compiledRegistrar, true);
@@ -333,7 +323,7 @@ BOOST_AUTO_TEST_CASE(double_reserve_long)
 	registrar.reserve(name);
 	BOOST_CHECK_EQUAL(registrar.owner(name), m_sender);
 
-	sendEther(account(1), u256(10) * ether);
+	sendElement(account(1), u256(10) * element);
 	m_sender = account(1);
 	registrar.reserve(name);
 	BOOST_CHECK_EQUAL(registrar.owner(name), account(0));
@@ -350,7 +340,7 @@ BOOST_AUTO_TEST_CASE(properties)
 	for (string const& name: names)
 	{
 		m_sender = account(0);
-		sendEther(account(count), u256(20) * ether);
+		sendElement(account(count), u256(20) * element);
 		m_sender = account(count);
 		auto sender = m_sender;
 		addr += count;
@@ -402,7 +392,7 @@ BOOST_AUTO_TEST_CASE(disown)
 	BOOST_CHECK_EQUAL(registrar.name(u160(124)), name);
 
 	// someone else tries disowning
-	sendEther(account(1), u256(10) * ether);
+	sendElement(account(1), u256(10) * element);
 	m_sender = account(1);
 	registrar.disown(name);
 	BOOST_CHECK_EQUAL(registrar.owner(name), account(0));
@@ -451,7 +441,7 @@ BOOST_AUTO_TEST_CASE(auction_bidding)
 	registrar.setNextValue(12);
 	registrar.reserve(name);
 	// another bid by someone else
-	sendEther(account(1), 10 * ether);
+	sendElement(account(1), 10 * element);
 	m_sender = account(1);
 	m_rpc.test_modifyTimestamp(startTime + 2 * m_biddingTime - 50);
 	registrar.setNextValue(13);
@@ -480,7 +470,7 @@ BOOST_AUTO_TEST_CASE(auction_renewal)
 	BOOST_CHECK_EQUAL(registrar.owner(name), m_sender);
 
 	// try to re-register before interval end
-	sendEther(account(1), 10 * ether);
+	sendElement(account(1), 10 * element);
 	m_sender = account(1);
 	m_rpc.test_modifyTimestamp(currentTimestamp() + m_renewalInterval - 1);
 	registrar.setNextValue(80);

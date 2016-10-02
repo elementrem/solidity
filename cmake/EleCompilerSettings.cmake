@@ -1,12 +1,11 @@
 #------------------------------------------------------------------------------
-# EthCompilerSettings.cmake
+# EleCompilerSettings.cmake
 #
 # CMake file for cpp-elementrem project which specifies our compiler settings
 # for each supported platform and build configuration.
 #
-# See http://www.ethdocs.org/en/latest/elementrem-clients/cpp-elementrem/.
 #
-# Copyright (c) 2016 cpp-elementrem contributors.
+# Copyright (c) 2014-2016 cpp-elementrem contributors.
 #------------------------------------------------------------------------------
 
 # Clang seeks to be command-line compatible with GCC as much as possible, so
@@ -71,7 +70,7 @@ if (("${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU") OR ("${CMAKE_CXX_COMPILER_ID}" MA
 	add_compile_options(-fPIC)
 
 	# Configuration-specific compiler settings.
-	set(CMAKE_CXX_FLAGS_DEBUG          "-O0 -g -DETH_DEBUG")
+	set(CMAKE_CXX_FLAGS_DEBUG          "-O0 -g -DELE_DEBUG")
 	set(CMAKE_CXX_FLAGS_MINSIZEREL     "-Os -DNDEBUG")
 	set(CMAKE_CXX_FLAGS_RELEASE        "-O3 -DNDEBUG")
 	set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O2 -g")
@@ -155,7 +154,7 @@ if (("${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU") OR ("${CMAKE_CXX_COMPILER_ID}" MA
 
 		if (EMSCRIPTEN)
 			set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --memory-init-file 0 -O3 -s LINKABLE=1 -s DISABLE_EXCEPTION_CATCHING=0 -s NO_EXIT_RUNTIME=1 -s ALLOW_MEMORY_GROWTH=1 -s NO_DYNAMIC_EXECUTION=1")
-			add_definitions(-DETH_EMSCRIPTEN=1)
+			add_definitions(-DELE_EMSCRIPTEN=1)
 		endif()
 	endif()
 
@@ -196,9 +195,9 @@ elseif (DEFINED MSVC)
 	set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /ignore:4099,4075 /STACK:16777216")
 
 	# windows likes static
-	if (NOT ETH_STATIC)
+	if (NOT ELE_STATIC)
 		message("Forcing static linkage for MSVC.")
-		set(ETH_STATIC 1)
+		set(ELE_STATIC 1)
 	endif ()
 	
 # If you don't have GCC, Clang or VC++ then you are on your own.  Good luck!
@@ -216,7 +215,7 @@ endif()
 if (PROFILING AND (("${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU") OR ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")))
 	set(CMAKE_CXX_FLAGS "-g ${CMAKE_CXX_FLAGS}")
 	set(CMAKE_C_FLAGS "-g ${CMAKE_C_FLAGS}")
-	add_definitions(-DETH_PROFILING_GPERF)
+	add_definitions(-DELE_PROFILING_GPERF)
 	set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -lprofiler")
 #	set(CMAKE_STATIC_LINKER_FLAGS "${CMAKE_STATIC_LINKER_FLAGS} -lprofiler")
 	set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -lprofiler")
@@ -240,8 +239,8 @@ if (("${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU") OR ("${CMAKE_CXX_COMPILER_ID}" MA
 	endif ()
 endif ()
 
-if(ETH_STATIC)
+if(ELE_STATIC)
 	set(BUILD_SHARED_LIBS OFF)
 else()
 	set(BUILD_SHARED_LIBS ON)
-endif(ETH_STATIC)
+endif(ELE_STATIC)

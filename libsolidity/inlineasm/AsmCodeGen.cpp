@@ -36,7 +36,7 @@ using namespace dev::solidity::assembly;
 
 struct GeneratorState
 {
-	GeneratorState(ErrorList& _errors, eth::Assembly& _assembly):
+	GeneratorState(ErrorList& _errors, ele::Assembly& _assembly):
 		errors(_errors), assembly(_assembly) {}
 
 	void addError(Error::Type _type, std::string const& _description, SourceLocation const& _location = SourceLocation())
@@ -57,20 +57,20 @@ struct GeneratorState
 		);
 		return localVariable != variables.rend() ? &localVariable->second : nullptr;
 	}
-	eth::AssemblyItem const* findLabel(string const& _labelName) const
+	ele::AssemblyItem const* findLabel(string const& _labelName) const
 	{
 		auto label = find_if(
 			labels.begin(),
 			labels.end(),
-			[&](pair<string, eth::AssemblyItem> const& _label) { return _label.first == _labelName; }
+			[&](pair<string, ele::AssemblyItem> const& _label) { return _label.first == _labelName; }
 		);
 		return label != labels.end() ? &label->second : nullptr;
 	}
 
-	map<string, eth::AssemblyItem> labels;
+	map<string, ele::AssemblyItem> labels;
 	vector<pair<string, int>> variables; ///< name plus stack height
 	ErrorList& errors;
-	eth::Assembly& assembly;
+	ele::Assembly& assembly;
 };
 
 /**
@@ -119,7 +119,7 @@ public:
 		if (_identifierAccess)
 			m_identifierAccess = _identifierAccess;
 		else
-			m_identifierAccess = [](assembly::Identifier const&, eth::Assembly&, CodeGenerator::IdentifierContext) { return false; };
+			m_identifierAccess = [](assembly::Identifier const&, ele::Assembly&, CodeGenerator::IdentifierContext) { return false; };
 	}
 
 	void operator()(assembly::Instruction const& _instruction)
@@ -163,7 +163,7 @@ public:
 				m_state.assembly.append(solidity::dupInstruction(heightDiff));
 			return;
 		}
-		else if (eth::AssemblyItem const* label = m_state.findLabel(_identifier.name))
+		else if (ele::AssemblyItem const* label = m_state.findLabel(_identifier.name))
 			m_state.assembly.append(label->pushTag());
 		else if (!m_identifierAccess(_identifier, m_state.assembly, CodeGenerator::IdentifierContext::RValue))
 		{
@@ -268,23 +268,23 @@ private:
 bool assembly::CodeGenerator::typeCheck(assembly::CodeGenerator::IdentifierAccess const& _identifierAccess)
 {
 	size_t initialErrorLen = m_errors.size();
-	eth::Assembly assembly;
+	ele::Assembly assembly;
 	GeneratorState state(m_errors, assembly);
 	(LabelOrganizer(state))(m_parsedData);
 	(CodeTransform(state, _identifierAccess))(m_parsedData);
 	return m_errors.size() == initialErrorLen;
 }
 
-eth::Assembly assembly::CodeGenerator::assemble(assembly::CodeGenerator::IdentifierAccess const& _identifierAccess)
+ele::Assembly assembly::CodeGenerator::assemble(assembly::CodeGenerator::IdentifierAccess const& _identifierAccess)
 {
-	eth::Assembly assembly;
+	ele::Assembly assembly;
 	GeneratorState state(m_errors, assembly);
 	(LabelOrganizer(state))(m_parsedData);
 	(CodeTransform(state, _identifierAccess))(m_parsedData);
 	return assembly;
 }
 
-void assembly::CodeGenerator::assemble(eth::Assembly& _assembly, assembly::CodeGenerator::IdentifierAccess const& _identifierAccess)
+void assembly::CodeGenerator::assemble(ele::Assembly& _assembly, assembly::CodeGenerator::IdentifierAccess const& _identifierAccess)
 {
 	GeneratorState state(m_errors, _assembly);
 	(LabelOrganizer(state))(m_parsedData);

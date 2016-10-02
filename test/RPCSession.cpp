@@ -46,7 +46,7 @@ IPCSocket::IPCSocket(string const& _path): m_path(_path)
 		NULL);          // no template file
 
 	if (m_socket == INVALID_HANDLE_VALUE)
-		BOOST_FAIL("Error creating IPC socket object");
+		BOOST_FAIL("Error creating IPC socket object!");
 
 #else
 	if (_path.length() >= sizeof(sockaddr_un::sun_path))
@@ -134,15 +134,15 @@ RPCSession& RPCSession::instance(const string& _path)
 	return session;
 }
 
-string RPCSession::eth_getCode(string const& _address, string const& _blockNumber)
+string RPCSession::ele_getCode(string const& _address, string const& _blockNumber)
 {
-	return rpcCall("eth_getCode", { quote(_address), quote(_blockNumber) }).asString();
+	return rpcCall("ele_getCode", { quote(_address), quote(_blockNumber) }).asString();
 }
 
-RPCSession::TransactionReceipt RPCSession::eth_getTransactionReceipt(string const& _transactionHash)
+RPCSession::TransactionReceipt RPCSession::ele_getTransactionReceipt(string const& _transactionHash)
 {
 	TransactionReceipt receipt;
-	Json::Value const result = rpcCall("eth_getTransactionReceipt", { quote(_transactionHash) });
+	Json::Value const result = rpcCall("ele_getTransactionReceipt", { quote(_transactionHash) });
 	BOOST_REQUIRE(!result.isNull());
 	receipt.gasUsed = result["gasUsed"].asString();
 	receipt.contractAddress = result["contractAddress"].asString();
@@ -158,31 +158,31 @@ RPCSession::TransactionReceipt RPCSession::eth_getTransactionReceipt(string cons
 	return receipt;
 }
 
-string RPCSession::eth_sendTransaction(TransactionData const& _td)
+string RPCSession::ele_sendTransaction(TransactionData const& _td)
 {
-	return rpcCall("eth_sendTransaction", { _td.toJson() }).asString();
+	return rpcCall("ele_sendTransaction", { _td.toJson() }).asString();
 }
 
-string RPCSession::eth_call(TransactionData const& _td, string const& _blockNumber)
+string RPCSession::ele_call(TransactionData const& _td, string const& _blockNumber)
 {
-	return rpcCall("eth_call", { _td.toJson(), quote(_blockNumber) }).asString();
+	return rpcCall("ele_call", { _td.toJson(), quote(_blockNumber) }).asString();
 }
 
-string RPCSession::eth_sendTransaction(string const& _transaction)
+string RPCSession::ele_sendTransaction(string const& _transaction)
 {
-	return rpcCall("eth_sendTransaction", { _transaction }).asString();
+	return rpcCall("ele_sendTransaction", { _transaction }).asString();
 }
 
-string RPCSession::eth_getBalance(string const& _address, string const& _blockNumber)
+string RPCSession::ele_getBalance(string const& _address, string const& _blockNumber)
 {
 	string address = (_address.length() == 20) ? "0x" + _address : _address;
-	return rpcCall("eth_getBalance", { quote(address), quote(_blockNumber) }).asString();
+	return rpcCall("ele_getBalance", { quote(address), quote(_blockNumber) }).asString();
 }
 
-string RPCSession::eth_getStorageRoot(string const& _address, string const& _blockNumber)
+string RPCSession::ele_getStorageRoot(string const& _address, string const& _blockNumber)
 {
 	string address = (_address.length() == 20) ? "0x" + _address : _address;
-	return rpcCall("eth_getStorageRoot", { quote(address), quote(_blockNumber) }).asString();
+	return rpcCall("ele_getStorageRoot", { quote(address), quote(_blockNumber) }).asString();
 }
 
 void RPCSession::personal_unlockAccount(string const& _address, string const& _password, int _duration)
@@ -214,10 +214,10 @@ void RPCSession::test_setChainParams(vector<string> const& _accounts)
 			"gasLimit": "0x1000000000000"
 		},
 		"accounts": {
-			"0000000000000000000000000000000000000001": { "wei": "1", "precompiled": { "name": "ecrecover", "linear": { "base": 3000, "word": 0 } } },
-			"0000000000000000000000000000000000000002": { "wei": "1", "precompiled": { "name": "sha256", "linear": { "base": 60, "word": 12 } } },
-			"0000000000000000000000000000000000000003": { "wei": "1", "precompiled": { "name": "ripemd160", "linear": { "base": 600, "word": 120 } } },
-			"0000000000000000000000000000000000000004": { "wei": "1", "precompiled": { "name": "identity", "linear": { "base": 15, "word": 3 } } }
+			"0000000000000000000000000000000000000001": { "mey": "1", "precompiled": { "name": "ecrecover", "linear": { "base": 3000, "word": 0 } } },
+			"0000000000000000000000000000000000000002": { "mey": "1", "precompiled": { "name": "sha256", "linear": { "base": 60, "word": 12 } } },
+			"0000000000000000000000000000000000000003": { "mey": "1", "precompiled": { "name": "ripemd160", "linear": { "base": 600, "word": 120 } } },
+			"0000000000000000000000000000000000000004": { "mey": "1", "precompiled": { "name": "identity", "linear": { "base": 15, "word": 3 } } }
 		}
 	}
 	)";
@@ -225,7 +225,7 @@ void RPCSession::test_setChainParams(vector<string> const& _accounts)
 	Json::Value config;
 	BOOST_REQUIRE(Json::Reader().parse(c_configString, config));
 	for (auto const& account: _accounts)
-		config["accounts"][account]["wei"] = "0x100000000000000000000000000000000000000000";
+		config["accounts"][account]["mey"] = "0x100000000000000000000000000000000000000000";
 	test_setChainParams(Json::FastWriter().write(config));
 }
 
@@ -241,18 +241,42 @@ void RPCSession::test_rewindToBlock(size_t _blockNr)
 
 void RPCSession::test_mineBlocks(int _number)
 {
-	u256 startBlock = fromBigEndian<u256>(fromHex(rpcCall("eth_blockNumber").asString()));
+	u256 startBlock = fromBigEndian<u256>(fromHex(rpcCall("ele_blockNumber").asString()));
 	rpcCall("test_mineBlocks", { to_string(_number) }, true);
 
-	//@TODO do not use polling - but that would probably need a change to the test client
-	for (size_t polls = 0; polls < 100; ++polls)
+	bool mined = false;
+
+	// We auto-calibrate the time it takes to mine the transaction.
+	// It would be better to go without polling, but that would probably need a change to the test client
+
+	unsigned sleepTime = m_sleepTime;
+	size_t polls = 0;
+	for (; polls < 14 && !mined; ++polls)
 	{
-		if (fromBigEndian<u256>(fromHex(rpcCall("eth_blockNumber").asString())) >= startBlock + _number)
-			return;
-		std::this_thread::sleep_for(chrono::milliseconds(10)); //it does not work faster then 10 ms
+		std::this_thread::sleep_for(chrono::milliseconds(sleepTime));
+		if (fromBigEndian<u256>(fromHex(rpcCall("ele_blockNumber").asString())) >= startBlock + _number)
+			mined = true;
+		else
+			sleepTime *= 2;
+	}
+	if (polls > 1)
+	{
+		m_successfulMineRuns = 0;
+		m_sleepTime += 2;
+	}
+	else if (polls == 1)
+	{
+		m_successfulMineRuns++;
+		if (m_successfulMineRuns > 5)
+		{
+			m_successfulMineRuns = 0;
+			if (m_sleepTime > 2)
+				m_sleepTime--;
+		}
 	}
 
-	BOOST_FAIL("Error in test_mineBlocks: block mining timeout!");
+	if (!mined)
+		BOOST_FAIL("Error in test_mineBlocks: block mining timeout!");
 }
 
 void RPCSession::test_modifyTimestamp(size_t _timestamp)

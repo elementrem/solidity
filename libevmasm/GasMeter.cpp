@@ -23,7 +23,7 @@
 #include <libevmasm/KnownState.h>
 using namespace std;
 using namespace dev;
-using namespace dev::eth;
+using namespace dev::ele;
 
 GasMeter::GasConsumption& GasMeter::GasConsumption::operator+=(GasConsumption const& _other)
 {

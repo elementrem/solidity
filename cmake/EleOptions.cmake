@@ -2,18 +2,18 @@ macro(configure_project)
 	set(NAME ${PROJECT_NAME})
 
 	# features
-	eth_default_option(PROFILING OFF)
+	ele_default_option(PROFILING OFF)
 
 	# components
-	eth_default_option(TESTS ON)
-	eth_default_option(TOOLS ON)
+	ele_default_option(TESTS ON)
+	ele_default_option(TOOLS ON)
 
 	# Define a matching property name of each of the "features".
 	foreach(FEATURE ${ARGN})
 		set(SUPPORT_${FEATURE} TRUE)
 	endforeach()
 
-	include(EthBuildInfo)
+	include(EleBuildInfo)
 	create_build_info(${NAME})
 	print_config(${NAME})
 endmacro()

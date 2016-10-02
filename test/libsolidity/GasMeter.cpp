@@ -30,7 +30,7 @@
 #include <libsolidity/interface/SourceReferenceFormatter.h>
 
 using namespace std;
-using namespace dev::eth;
+using namespace dev::ele;
 using namespace dev::solidity;
 
 namespace dev
@@ -46,8 +46,8 @@ public:
 	GasMeterTestFramework() { }
 	void compile(string const& _sourceCode)
 	{
-		m_compiler.setSource(_sourceCode);
-		ETH_TEST_REQUIRE_NO_THROW(m_compiler.compile(), "Compiling contract failed");
+		m_compiler.setSource("pragma solidity >= 0.0;" + _sourceCode);
+		ELE_TEST_REQUIRE_NO_THROW(m_compiler.compile(), "Compiling contract failed");
 
 		AssemblyItems const* items = m_compiler.runtimeAssemblyItems("");
 		ASTNode const& sourceUnit = m_compiler.ast();
@@ -108,7 +108,7 @@ public:
 	}
 
 protected:
-	map<ASTNode const*, eth::GasMeter::GasConsumption> m_gasCosts;
+	map<ASTNode const*, ele::GasMeter::GasConsumption> m_gasCosts;
 };
 
 BOOST_FIXTURE_TEST_SUITE(GasMeterTests, GasMeterTestFramework)

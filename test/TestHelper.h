@@ -15,7 +15,7 @@
 	along with cpp-elementrem.  If not, see <http://www.gnu.org/licenses/>.
 */
 /** @file TestHelper.h
- * 
+ * @author Marko Simovic <markobarko@gmail.com>
  * 
  */
 
@@ -32,13 +32,13 @@ namespace test
 {
 
 #if (BOOST_VERSION >= 105900)
-#define ETH_BOOST_CHECK_IMPL(_message, _requireOrCheck) BOOST_TEST_TOOL_DIRECT_IMPL( \
+#define ELE_BOOST_CHECK_IMPL(_message, _requireOrCheck) BOOST_TEST_TOOL_DIRECT_IMPL( \
 		false,															\
 		_requireOrCheck,												\
 		_message														\
 	)
 #else
-#define ETH_BOOST_CHECK_IMPL(_message, _requireOrCheck) BOOST_CHECK_IMPL( \
+#define ELE_BOOST_CHECK_IMPL(_message, _requireOrCheck) BOOST_CHECK_IMPL( \
 		false,															\
 		_message,														\
 		_requireOrCheck,												\
@@ -50,7 +50,7 @@ namespace test
 /// Our version of BOOST_REQUIRE_NO_THROW()
 /// @param _statement     The statement for which to make sure no exceptions are thrown
 /// @param _message       A message to act as a prefix to the expression's error information
-#define ETH_TEST_REQUIRE_NO_THROW(_statement, _message)				\
+#define ELE_TEST_REQUIRE_NO_THROW(_statement, _message)				\
 	do																	\
 	{																	\
 		try															\
@@ -62,11 +62,11 @@ namespace test
 		{																\
 			auto msg = std::string(_message " due to an exception thrown by " \
 				BOOST_STRINGIZE(_statement) "\n") + boost::diagnostic_information(_e); \
-			ETH_BOOST_CHECK_IMPL(msg, REQUIRE);							\
+			ELE_BOOST_CHECK_IMPL(msg, REQUIRE);							\
 		}																\
 		catch (...)														\
 		{																\
-			ETH_BOOST_CHECK_IMPL(										\
+			ELE_BOOST_CHECK_IMPL(										\
 				"Unknown exception thrown by " BOOST_STRINGIZE(_statement),	\
 				REQUIRE													\
 			);															\
@@ -78,7 +78,7 @@ namespace test
 /// Our version of BOOST_CHECK_NO_THROW()
 /// @param _statement    The statement for which to make sure no exceptions are thrown
 /// @param _message       A message to act as a prefix to the expression's error information
-#define ETH_TEST_CHECK_NO_THROW(_statement, _message)					\
+#define ELE_TEST_CHECK_NO_THROW(_statement, _message)					\
 	do																	\
 	{																	\
 		try															\
@@ -90,11 +90,11 @@ namespace test
 		{																\
 			auto msg = std::string(_message " due to an exception thrown by " \
 				BOOST_STRINGIZE(_statement) "\n") + boost::diagnostic_information(_e); \
-			ETH_BOOST_CHECK_IMPL(msg, CHECK);							\
+			ELE_BOOST_CHECK_IMPL(msg, CHECK);							\
 		}																\
 		catch (...)														\
 		{																\
-			ETH_BOOST_CHECK_IMPL(										\
+			ELE_BOOST_CHECK_IMPL(										\
 				"Unknown exception thrown by " BOOST_STRINGIZE(_statement),	\
 				CHECK													\
 			);															\
@@ -103,19 +103,15 @@ namespace test
 	while (0)
 
 
-	class Options
-	{
-	public:
-		std::string ipcPath;
-		int tArgc;
-		char **tArgv;
-		/// Get reference to options
-		/// The first time used, options are parsed with argc, argv
-		static Options const& get(int argc = 0, char** argv = 0);
+struct Options: boost::noncopyable
+{
+	std::string ipcPath;
 
-	private:
-		Options(int argc, char** argv = 0);
-		Options(Options const&) = delete;
-	};
+	static Options const& get();
+
+private:
+	Options();
+};
+
 }
 }

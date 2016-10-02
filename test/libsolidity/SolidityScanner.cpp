@@ -255,13 +255,13 @@ BOOST_AUTO_TEST_CASE(comments_mixed_in_sequence)
 	BOOST_CHECK_EQUAL(scanner.currentCommentLiteral(), "documentation comment ");
 }
 
-BOOST_AUTO_TEST_CASE(ether_subdenominations)
+BOOST_AUTO_TEST_CASE(element_subdenominations)
 {
-	Scanner scanner(CharStream("wei szabo finney ether"));
-	BOOST_CHECK_EQUAL(scanner.currentToken(), Token::SubWei);
+	Scanner scanner(CharStream("mey szabo finney element"));
+	BOOST_CHECK_EQUAL(scanner.currentToken(), Token::SubMey);
 	BOOST_CHECK_EQUAL(scanner.next(), Token::SubSzabo);
 	BOOST_CHECK_EQUAL(scanner.next(), Token::SubFinney);
-	BOOST_CHECK_EQUAL(scanner.next(), Token::SubEther);
+	BOOST_CHECK_EQUAL(scanner.next(), Token::SubElement);
 }
 
 BOOST_AUTO_TEST_CASE(time_subdenominations)
@@ -273,12 +273,6 @@ BOOST_AUTO_TEST_CASE(time_subdenominations)
 	BOOST_CHECK_EQUAL(scanner.next(), Token::SubDay);
 	BOOST_CHECK_EQUAL(scanner.next(), Token::SubWeek);
 	BOOST_CHECK_EQUAL(scanner.next(), Token::SubYear);
-}
-
-BOOST_AUTO_TEST_CASE(time_after)
-{
-	Scanner scanner(CharStream("after 1"));
-	BOOST_CHECK_EQUAL(scanner.currentToken(), Token::After);
 }
 
 BOOST_AUTO_TEST_CASE(empty_comment)
@@ -326,6 +320,42 @@ BOOST_AUTO_TEST_CASE(valid_unicode_string_escape_ffff)
 BOOST_AUTO_TEST_CASE(invalid_short_unicode_string_escape)
 {
 	Scanner scanner(CharStream("{ \"\\uFFnicode\""));
+	BOOST_CHECK_EQUAL(scanner.currentToken(), Token::LBrace);
+	BOOST_CHECK_EQUAL(scanner.next(), Token::Illegal);
+}
+
+BOOST_AUTO_TEST_CASE(valid_hex_literal)
+{
+	Scanner scanner(CharStream("{ hex\"00112233FF\""));
+	BOOST_CHECK_EQUAL(scanner.currentToken(), Token::LBrace);
+	BOOST_CHECK_EQUAL(scanner.next(), Token::StringLiteral);
+	BOOST_CHECK_EQUAL(scanner.currentLiteral(), std::string("\x00\x11\x22\x33\xFF", 5));
+}
+
+BOOST_AUTO_TEST_CASE(invalid_short_hex_literal)
+{
+	Scanner scanner(CharStream("{ hex\"00112233F\""));
+	BOOST_CHECK_EQUAL(scanner.currentToken(), Token::LBrace);
+	BOOST_CHECK_EQUAL(scanner.next(), Token::Illegal);
+}
+
+BOOST_AUTO_TEST_CASE(invalid_hex_literal_with_space)
+{
+	Scanner scanner(CharStream("{ hex\"00112233FF \""));
+	BOOST_CHECK_EQUAL(scanner.currentToken(), Token::LBrace);
+	BOOST_CHECK_EQUAL(scanner.next(), Token::Illegal);
+}
+
+BOOST_AUTO_TEST_CASE(invalid_hex_literal_with_wrong_quotes)
+{
+	Scanner scanner(CharStream("{ hex\"00112233FF'"));
+	BOOST_CHECK_EQUAL(scanner.currentToken(), Token::LBrace);
+	BOOST_CHECK_EQUAL(scanner.next(), Token::Illegal);
+}
+
+BOOST_AUTO_TEST_CASE(invalid_hex_literal_nonhex_string)
+{
+	Scanner scanner(CharStream("{ hex\"hello\""));
 	BOOST_CHECK_EQUAL(scanner.currentToken(), Token::LBrace);
 	BOOST_CHECK_EQUAL(scanner.next(), Token::Illegal);
 }

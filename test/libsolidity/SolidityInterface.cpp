@@ -42,9 +42,9 @@ public:
 	ContractDefinition const& checkInterface(string const& _code, string const& _contractName = "")
 	{
 		m_code = _code;
-		ETH_TEST_REQUIRE_NO_THROW(m_compilerStack.parse(_code), "Parsing failed");
+		ELE_TEST_REQUIRE_NO_THROW(m_compilerStack.parse(_code), "Parsing failed");
 		m_interface = m_compilerStack.metadata("", DocumentationType::ABISolidityInterface);
-		ETH_TEST_REQUIRE_NO_THROW(m_reCompiler.parse(m_interface), "Interface parsing failed");
+		ELE_TEST_REQUIRE_NO_THROW(m_reCompiler.parse(m_interface), "Interface parsing failed");
 		return m_reCompiler.contractDefinition(_contractName);
 	}
 

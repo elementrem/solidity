@@ -121,7 +121,7 @@ bytes compileFirstExpression(
 	for (ASTPointer<ASTNode> const& node: sourceUnit->nodes())
 		if (ContractDefinition* contract = dynamic_cast<ContractDefinition*>(node.get()))
 		{
-			ETH_TEST_REQUIRE_NO_THROW(resolver.resolveNamesAndTypes(*contract), "Resolving names failed");
+			ELE_TEST_REQUIRE_NO_THROW(resolver.resolveNamesAndTypes(*contract), "Resolving names failed");
 			inheritanceHierarchy = vector<ContractDefinition const*>(1, contract);
 		}
 	for (ASTPointer<ASTNode> const& node: sourceUnit->nodes())
@@ -155,7 +155,7 @@ bytes compileFirstExpression(
 				));
 			bytes instructions = context.assembledObject().bytecode;
 			// debug
-			// cout << eth::disassemble(instructions) << endl;
+			// cout << ele::disassemble(instructions) << endl;
 			return instructions;
 		}
 	BOOST_FAIL("No contract found in source.");
@@ -200,13 +200,13 @@ BOOST_AUTO_TEST_CASE(int_literal)
 	BOOST_CHECK_EQUAL_COLLECTIONS(code.begin(), code.end(), expectation.begin(), expectation.end());
 }
 
-BOOST_AUTO_TEST_CASE(int_with_wei_ether_subdenomination)
+BOOST_AUTO_TEST_CASE(int_with_mey_element_subdenomination)
 {
 	char const* sourceCode = R"(
 		contract test {
 			function test ()
 			{
-				 var x = 1 wei;
+				 var x = 1 mey;
 			}
 		})";
 	bytes code = compileFirstExpression(sourceCode);
@@ -215,7 +215,7 @@ BOOST_AUTO_TEST_CASE(int_with_wei_ether_subdenomination)
 	BOOST_CHECK_EQUAL_COLLECTIONS(code.begin(), code.end(), expectation.begin(), expectation.end());
 }
 
-BOOST_AUTO_TEST_CASE(int_with_szabo_ether_subdenomination)
+BOOST_AUTO_TEST_CASE(int_with_szabo_element_subdenomination)
 {
 	char const* sourceCode = R"(
 		contract test {
@@ -230,7 +230,7 @@ BOOST_AUTO_TEST_CASE(int_with_szabo_ether_subdenomination)
 	BOOST_CHECK_EQUAL_COLLECTIONS(code.begin(), code.end(), expectation.begin(), expectation.end());
 }
 
-BOOST_AUTO_TEST_CASE(int_with_finney_ether_subdenomination)
+BOOST_AUTO_TEST_CASE(int_with_finney_element_subdenomination)
 {
 	char const* sourceCode = R"(
 		contract test {
@@ -245,13 +245,13 @@ BOOST_AUTO_TEST_CASE(int_with_finney_ether_subdenomination)
 	BOOST_CHECK_EQUAL_COLLECTIONS(code.begin(), code.end(), expectation.begin(), expectation.end());
 }
 
-BOOST_AUTO_TEST_CASE(int_with_ether_ether_subdenomination)
+BOOST_AUTO_TEST_CASE(int_with_element_element_subdenomination)
 {
 	char const* sourceCode = R"(
 		contract test {
 			function test ()
 			{
-				 var x = 1 ether;
+				 var x = 1 element;
 			}
 		})";
 	bytes code = compileFirstExpression(sourceCode);
@@ -323,7 +323,15 @@ BOOST_AUTO_TEST_CASE(arithmetics)
 					   byte(Instruction::OR),
 					   byte(Instruction::SUB),
 					   byte(Instruction::ADD),
+					   byte(Instruction::DUP2),
+					   byte(Instruction::ISZERO),
+					   byte(Instruction::PUSH1), 0x2,
+					   byte(Instruction::JUMPI),
 					   byte(Instruction::MOD),
+					   byte(Instruction::DUP2),
+					   byte(Instruction::ISZERO),
+					   byte(Instruction::PUSH1), 0x2,
+					   byte(Instruction::JUMPI),
 					   byte(Instruction::DIV),
 					   byte(Instruction::MUL)});
 	BOOST_CHECK_EQUAL_COLLECTIONS(code.begin(), code.end(), expectation.begin(), expectation.end());

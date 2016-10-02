@@ -1,9 +1,9 @@
-function(eth_apply TARGET REQUIRED SUBMODULE)
+function(ele_apply TARGET REQUIRED SUBMODULE)
 
 	# Base is where all dependencies for devcore are
 	if (${SUBMODULE} STREQUAL "base")
 		# if it's elementrem source dir, always build BuildInfo.h before
-		eth_use(${TARGET} ${REQUIRED} Dev::buildinfo)
+		ele_use(${TARGET} ${REQUIRED} Dev::buildinfo)
 
 		target_include_directories(${TARGET} SYSTEM PUBLIC ${Boost_INCLUDE_DIRS})
 		target_link_libraries(${TARGET} ${Boost_THREAD_LIBRARIES})
@@ -23,7 +23,7 @@ function(eth_apply TARGET REQUIRED SUBMODULE)
 	endif()
 
 	if (${SUBMODULE} STREQUAL "soldevcore")
-		eth_use(${TARGET} ${REQUIRED} Dev::base)
+		ele_use(${TARGET} ${REQUIRED} Dev::base)
 		target_link_libraries(${TARGET} soldevcore)
 	endif()
 
