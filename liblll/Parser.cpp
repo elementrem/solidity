@@ -100,7 +100,7 @@ void dev::ele::parseTreeLLL(string const& _s, sp::utree& o_out)
 	static const u256 finney = u256(1000000000) * 1000000;
 	static const u256 szabo = u256(1000000000) * 1000;
 
-	qi::rule<it, space_type, sp::utree()> element;
+	qi::rule<it, space_type, sp::utree()> elemen;
 	qi::rule<it, string()> str = '"' > qi::lexeme[+(~qi::char_(std::string("\"") + '\0'))] > '"';
 	qi::rule<it, string()> strsh = '\'' > qi::lexeme[+(~qi::char_(std::string(" ;$@()[]{}:\n\t") + '\0'))];
 	qi::rule<it, symbol_type()> symbol = qi::lexeme[+(~qi::char_(std::string(" $@[]{}:();\"\x01-\x1f\x7f") + '\0'))];
@@ -109,16 +109,16 @@ void dev::ele::parseTreeLLL(string const& _s, sp::utree& o_out)
 	qi::rule<it, bigint()> multiplier = qi::lit("mey")[qi::_val = 1] | qi::lit("szabo")[qi::_val = szabo] | qi::lit("finney")[qi::_val = finney] | qi::lit("element")[qi::_val = element];
 	qi::rule<it, space_type, bigint()> quantity = integer[qi::_val = qi::_1] >> -multiplier[qi::_val *= qi::_1];
 	qi::rule<it, space_type, sp::utree()> atom = quantity[qi::_val = px::construct<sp::any_ptr>(px::new_<bigint>(qi::_1))] | (str | strsh)[qi::_val = qi::_1] | symbol[qi::_val = qi::_1];
-	qi::rule<it, space_type, sp::utree::list_type()> seq = '{' > *element > '}';
-	qi::rule<it, space_type, sp::utree::list_type()> mload = '@' > element;
-	qi::rule<it, space_type, sp::utree::list_type()> sload = qi::lit("@@") > element;
-	qi::rule<it, space_type, sp::utree::list_type()> mstore = '[' > element > ']' > -qi::lit(":") > element;
-	qi::rule<it, space_type, sp::utree::list_type()> sstore = qi::lit("[[") > element > qi::lit("]]") > -qi::lit(":") > element;
-	qi::rule<it, space_type, sp::utree::list_type()> calldataload = qi::lit("$") > element;
-	qi::rule<it, space_type, sp::utree::list_type()> list = '(' > *element > ')';
+	qi::rule<it, space_type, sp::utree::list_type()> seq = '{' > *elemen > '}';
+	qi::rule<it, space_type, sp::utree::list_type()> mload = '@' > elemen;
+	qi::rule<it, space_type, sp::utree::list_type()> sload = qi::lit("@@") > elemen;
+	qi::rule<it, space_type, sp::utree::list_type()> mstore = '[' > elemen > ']' > -qi::lit(":") > elemen;
+	qi::rule<it, space_type, sp::utree::list_type()> sstore = qi::lit("[[") > elemen > qi::lit("]]") > -qi::lit(":") > elemen;
+	qi::rule<it, space_type, sp::utree::list_type()> calldataload = qi::lit("$") > elemen;
+	qi::rule<it, space_type, sp::utree::list_type()> list = '(' > *elemen > ')';
 
 	qi::rule<it, space_type, sp::utree()> extra = sload[tagNode<2>()] | mload[tagNode<1>()] | sstore[tagNode<4>()] | mstore[tagNode<3>()] | seq[tagNode<5>()] | calldataload[tagNode<6>()];
-	element = atom | list | extra;
+	elemen = atom | list | extra;
 
 	string s;
 	s.reserve(_s.size());
@@ -141,7 +141,7 @@ void dev::ele::parseTreeLLL(string const& _s, sp::utree& o_out)
 			s.push_back(i);
 	}
 	auto ret = s.cbegin();
-	qi::phrase_parse(ret, s.cend(), element, space, qi::skip_flag::dont_postskip, o_out);
+	qi::phrase_parse(ret, s.cend(), elemen, space, qi::skip_flag::dont_postskip, o_out);
 	for (auto i = ret; i != s.cend(); ++i)
 		if (!isspace(*i))
 			BOOST_THROW_EXCEPTION(std::exception());
