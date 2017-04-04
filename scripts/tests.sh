@@ -28,8 +28,14 @@
 
 set -e
 
-# There is an implicit assumption here that we HAVE to run from root directory.
-REPO_ROOT=$(pwd)
+REPO_ROOT="$(dirname "$0")"/..
+
+echo "Running commandline tests..."
+"$REPO_ROOT/test/cmdlineTests.sh"
+
+echo "Checking that StandardToken.sol, owned.sol and mortal.sol produce bytecode..."
+output=$("$REPO_ROOT"/build/solc/solc --bin "$REPO_ROOT"/std/*.sol 2>/dev/null | grep "ffff" | wc -l)
+test "${output//[[:blank:]]/}" = "3"
 
 # This conditional is only needed because we don't have a working Homebrew
 # install for `ele` at the time of writing, so we unzip the ZIP file locally
@@ -46,16 +52,22 @@ fi
 # true and continue as normal, either processing further commands in a script
 # or returning the cursor focus back to the user in a Linux terminal.
 $ELE_PATH --test -d /tmp/test &
+ELE_PID=$!
 
 # Wait until the IPC endpoint is available.  That won't be available instantly.
 # The node needs to get a little way into its startup sequence before the IPC
 # is available and is ready for the unit-tests to start talking to it.
 while [ ! -S /tmp/test/gele.ipc ]; do sleep 2; done
-
-# And then run the Solidity unit-tests, pointing to that IPC endpoint.
-"$REPO_ROOT"/build/test/soltest -- --ipcpath /tmp/test/gele.ipc
+echo "--> IPC available."
+sleep 2
+# And then run the Solidity unit-tests (once without optimization, once with),
+# pointing to that IPC endpoint.
+echo "--> Running tests without optimizer..."
+  "$REPO_ROOT"/build/test/soltest --show-progress -- --ipcpath /tmp/test/gele.ipc && \
+  echo "--> Running tests WITH optimizer..." && \
+  "$REPO_ROOT"/build/test/soltest --show-progress -- --optimize --ipcpath /tmp/test/gele.ipc
 ERROR_CODE=$?
-pkill ele || true
+pkill "$ELE_PID" || true
 sleep 4
-pgrep ele && pkill -9 ele || true
+pgrep "$ELE_PID" && pkill -9 "$ELE_PID" || true
 exit $ERROR_CODE

@@ -1,18 +1,18 @@
 /*
-	This file is part of cpp-elementrem.
+	This file is part of solidity.
 
-	cpp-elementrem is free software: you can redistribute it and/or modify
+	solidity is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
 	the Free Software Foundation, either version 3 of the License, or
 	(at your option) any later version.
 
-	cpp-elementrem is distributed in the hope that it will be useful,
+	solidity is distributed in the hope that it will be useful,
 	but WITHOUT ANY WARRANTY; without even the implied warranty of
 	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with cpp-elementrem.  If not, see <http://www.gnu.org/licenses/>.
+	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 
 	This file is derived from the file "scanner.cc", which was part of the
 	V8 project. The original copyright header follows:
@@ -44,11 +44,11 @@
 	(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 	OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
-/**
- * 
- * 
- * Solidity scanner.
- */
+
+
+
+
+
 
 #include <algorithm>
 #include <tuple>
@@ -327,7 +327,12 @@ Token::Value Scanner::scanMultiLineDocComment()
 		if (isLineTerminator(m_char))
 		{
 			skipWhitespace();
-			if (!m_source.isPastEndOfInput(1) && m_source.get(0) == '*' && m_source.get(1) != '/')
+			if (!m_source.isPastEndOfInput(1) && m_source.get(0) == '*' && m_source.get(1) == '*')
+			{ // it is unknown if this leads to the end of the comment
+				addCommentLiteralChar('*');
+				advance();
+			}
+			else if (!m_source.isPastEndOfInput(1) && m_source.get(0) == '*' && m_source.get(1) != '/')
 			{ // skip first '*' in subsequent lines
 				if (charsAdded)
 					addCommentLiteralChar('\n');
@@ -753,6 +758,9 @@ Token::Value Scanner::scanNumber(char _charSeen)
 				while (isHexDigit(m_char))
 					addLiteralCharAndAdvance();
 			}
+			else if (isDecimalDigit(m_char))
+				// We do not allow octal numbers
+				return Token::Illegal;
 		}
 		// Parse decimal digits and allow trailing fractional part.
 		if (kind == DECIMAL)

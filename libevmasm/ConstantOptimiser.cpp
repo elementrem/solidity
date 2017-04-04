@@ -1,23 +1,23 @@
 /*
-	This file is part of cpp-elementrem.
+	This file is part of solidity.
 
-	cpp-elementrem is free software: you can redistribute it and/or modify
+	solidity is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
 	the Free Software Foundation, either version 3 of the License, or
 	(at your option) any later version.
 
-	cpp-elementrem is distributed in the hope that it will be useful,
+	solidity is distributed in the hope that it will be useful,
 	but WITHOUT ANY WARRANTY; without even the implied warranty of
 	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with cpp-elementrem.  If not, see <http://www.gnu.org/licenses/>.
+	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
-/** @file ConstantOptimiser.cpp
- * 
- * 
- */
+
+
+
+
 
 #include <libevmasm/ConstantOptimiser.h>
 #include <libevmasm/Assembly.h>
@@ -38,6 +38,7 @@ unsigned ConstantOptimisationMethod::optimiseConstants(
 	for (AssemblyItem const& item: _items)
 		if (item.type() == Push)
 			pushes[item]++;
+	map<u256, AssemblyItems> pendingReplacements;
 	for (auto it: pushes)
 	{
 		AssemblyItem const& item = it.first;
@@ -53,17 +54,22 @@ unsigned ConstantOptimisationMethod::optimiseConstants(
 		bigint copyGas = copy.gasNeeded();
 		ComputeMethod compute(params, item.data());
 		bigint computeGas = compute.gasNeeded();
+		AssemblyItems replacement;
 		if (copyGas < literalGas && copyGas < computeGas)
 		{
-			copy.execute(_assembly, _items);
+			replacement = copy.execute(_assembly);
 			optimisations++;
 		}
-		else if (computeGas < literalGas && computeGas < copyGas)
+		else if (computeGas < literalGas && computeGas <= copyGas)
 		{
-			compute.execute(_assembly, _items);
+			replacement = compute.execute(_assembly);
 			optimisations++;
 		}
+		if (!replacement.empty())
+			pendingReplacements[item.data()] = replacement;
 	}
+	if (!pendingReplacements.empty())
+		replaceConstants(_items, pendingReplacements);
 	return optimisations;
 }
 
@@ -101,18 +107,24 @@ size_t ConstantOptimisationMethod::bytesRequired(AssemblyItems const& _items)
 
 void ConstantOptimisationMethod::replaceConstants(
 	AssemblyItems& _items,
-	AssemblyItems const& _replacement
-) const
+	map<u256, AssemblyItems> const& _replacements
+)
 {
-	assertThrow(_items.size() > 0, OptimizerException, "");
-	for (size_t i = 0; i < _items.size(); ++i)
+	AssemblyItems replaced;
+	for (AssemblyItem const& item: _items)
 	{
-		if (_items.at(i) != AssemblyItem(m_value))
-			continue;
-		_items[i] = _replacement[0];
-		_items.insert(_items.begin() + i + 1, _replacement.begin() + 1, _replacement.end());
-		i += _replacement.size() - 1;
+		if (item.type() == Push)
+		{
+			auto it = _replacements.find(item.data());
+			if (it != _replacements.end())
+			{
+				replaced += it->second;
+				continue;
+			}
+		}
+		replaced.push_back(item);
 	}
+	_items = std::move(replaced);
 }
 
 bigint LiteralMethod::gasNeeded()
@@ -128,7 +140,31 @@ bigint LiteralMethod::gasNeeded()
 CodeCopyMethod::CodeCopyMethod(Params const& _params, u256 const& _value):
 	ConstantOptimisationMethod(_params, _value)
 {
-	m_copyRoutine = AssemblyItems{
+}
+
+bigint CodeCopyMethod::gasNeeded()
+{
+	return combineGas(
+		// Run gas: we ignore memory increase costs
+		simpleRunGas(copyRoutine()) + GasCosts::copyGas,
+		// Data gas for copy routines: Some bytes are zero, but we ignore them.
+		bytesRequired(copyRoutine()) * (m_params.isCreation ? GasCosts::txDataNonZeroGas : GasCosts::createDataGas),
+		// Data gas for data itself
+		dataGas(toBigEndian(m_value))
+	);
+}
+
+AssemblyItems CodeCopyMethod::execute(Assembly& _assembly)
+{
+	bytes data = toBigEndian(m_value);
+	AssemblyItems actualCopyRoutine = copyRoutine();
+	actualCopyRoutine[4] = _assembly.newData(data);
+	return actualCopyRoutine;
+}
+
+AssemblyItems const& CodeCopyMethod::copyRoutine() const
+{
+	AssemblyItems static copyRoutine{
 		u256(0),
 		Instruction::DUP1,
 		Instruction::MLOAD, // back up memory
@@ -141,25 +177,7 @@ CodeCopyMethod::CodeCopyMethod(Params const& _params, u256 const& _value):
 		Instruction::SWAP2,
 		Instruction::MSTORE
 	};
-}
-
-bigint CodeCopyMethod::gasNeeded()
-{
-	return combineGas(
-		// Run gas: we ignore memory increase costs
-		simpleRunGas(m_copyRoutine) + GasCosts::copyGas,
-		// Data gas for copy routines: Some bytes are zero, but we ignore them.
-		bytesRequired(m_copyRoutine) * (m_params.isCreation ? GasCosts::txDataNonZeroGas : GasCosts::createDataGas),
-		// Data gas for data itself
-		dataGas(toBigEndian(m_value))
-	);
-}
-
-void CodeCopyMethod::execute(Assembly& _assembly, AssemblyItems& _items)
-{
-	bytes data = toBigEndian(m_value);
-	m_copyRoutine[4] = _assembly.newData(data);
-	replaceConstants(_items, m_copyRoutine);
+	return copyRoutine;
 }
 
 AssemblyItems ComputeMethod::findRepresentation(u256 const& _value)
@@ -176,7 +194,7 @@ AssemblyItems ComputeMethod::findRepresentation(u256 const& _value)
 		// Is not always better, try literal and decomposition method.
 		AssemblyItems routine{u256(_value)};
 		bigint bestGas = gasNeeded(routine);
-		for (unsigned bits = 255; bits > 8; --bits)
+		for (unsigned bits = 255; bits > 8 && m_maxSteps > 0; --bits)
 		{
 			unsigned gapDetector = unsigned(_value >> (bits - 8)) & 0x1ff;
 			if (gapDetector != 0xff && gapDetector != 0x100)
@@ -201,6 +219,8 @@ AssemblyItems ComputeMethod::findRepresentation(u256 const& _value)
 			else if (lowerPart < 0)
 				newRoutine.push_back(Instruction::SUB);
 
+			if (m_maxSteps > 0)
+				m_maxSteps--;
 			bigint newGas = gasNeeded(newRoutine);
 			if (newGas < bestGas)
 			{

@@ -1,24 +1,24 @@
 /*
-    This file is part of cpp-elementrem.
+    This file is part of solidity.
 
-    cpp-elementrem is free software: you can redistribute it and/or modify
+    solidity is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
-    cpp-elementrem is distributed in the hope that it will be useful,
+    solidity is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with cpp-elementrem.  If not, see <http://www.gnu.org/licenses/>.
+    along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
-/**
- * 
- * 
- * Component that resolves type names to types and annotates the AST accordingly.
- */
+
+
+
+
+
 
 #include <libsolidity/analysis/ReferencesResolver.h>
 #include <libsolidity/ast/AST.h>
@@ -35,14 +35,7 @@ using namespace dev::solidity;
 
 bool ReferencesResolver::resolve(ASTNode const& _root)
 {
-	try
-	{
-		_root.accept(*this);
-	}
-	catch (FatalError const&)
-	{
-		solAssert(m_errorOccurred, "");
-	}
+	_root.accept(*this);
 	return !m_errorOccurred;
 }
 
@@ -65,6 +58,30 @@ bool ReferencesResolver::visit(ElementaryTypeName const& _typeName)
 	return true;
 }
 
+bool ReferencesResolver::visit(FunctionDefinition const& _functionDefinition)
+{
+	m_returnParameters.push_back(_functionDefinition.returnParameterList().get());
+	return true;
+}
+
+void ReferencesResolver::endVisit(FunctionDefinition const&)
+{
+	solAssert(!m_returnParameters.empty(), "");
+	m_returnParameters.pop_back();
+}
+
+bool ReferencesResolver::visit(ModifierDefinition const&)
+{
+	m_returnParameters.push_back(nullptr);
+	return true;
+}
+
+void ReferencesResolver::endVisit(ModifierDefinition const&)
+{
+	solAssert(!m_returnParameters.empty(), "");
+	m_returnParameters.pop_back();
+}
+
 void ReferencesResolver::endVisit(UserDefinedTypeName const& _typeName)
 {
 	Declaration const* declaration = m_resolver.pathFromCurrentScope(_typeName.namePath());
@@ -81,6 +98,30 @@ void ReferencesResolver::endVisit(UserDefinedTypeName const& _typeName)
 		_typeName.annotation().type = make_shared<ContractType>(*contract);
 	else
 		fatalTypeError(_typeName.location(), "Name has to refer to a struct, enum or contract.");
+}
+
+void ReferencesResolver::endVisit(FunctionTypeName const& _typeName)
+{
+	switch (_typeName.visibility())
+	{
+	case VariableDeclaration::Visibility::Internal:
+	case VariableDeclaration::Visibility::External:
+		break;
+	default:
+		typeError(_typeName.location(), "Invalid visibility, can only be \"external\" or \"internal\".");
+	}
+
+	if (_typeName.isPayable() && _typeName.visibility() != VariableDeclaration::Visibility::External)
+		fatalTypeError(_typeName.location(), "Only external function types can be payable.");
+	if (_typeName.visibility() == VariableDeclaration::Visibility::External)
+		for (auto const& t: _typeName.parameterTypes() + _typeName.returnParameterTypes())
+		{
+			solAssert(t->annotation().type, "Type not set for parameter.");
+			if (!t->annotation().type->canBeUsedExternally(false))
+				fatalTypeError(t->location(), "Internal type cannot be used for external function type.");
+		}
+
+	_typeName.annotation().type = make_shared<FunctionType>(_typeName);
 }
 
 void ReferencesResolver::endVisit(Mapping const& _typeName)
@@ -106,6 +147,8 @@ void ReferencesResolver::endVisit(ArrayTypeName const& _typeName)
 		auto const* lengthType = dynamic_cast<RationalNumberType const*>(length->annotation().type.get());
 		if (!lengthType || lengthType->isFractional())
 			fatalTypeError(length->location(), "Invalid array length, expected integer literal.");
+		else if (lengthType->isNegative())
+			fatalTypeError(length->location(), "Array with negative length specified.");
 		else
 			_typeName.annotation().type = make_shared<ArrayType>(DataLocation::Storage, baseType, lengthType->literalValue(nullptr));
 	}
@@ -135,7 +178,8 @@ bool ReferencesResolver::visit(InlineAssembly const& _inlineAssembly)
 
 bool ReferencesResolver::visit(Return const& _return)
 {
-	_return.annotation().functionReturnParameters = m_returnParameters;
+	solAssert(!m_returnParameters.empty(), "");
+	_return.annotation().functionReturnParameters = m_returnParameters.back();
 	return true;
 }
 

@@ -1,23 +1,23 @@
 /*
-	This file is part of cpp-elementrem.
+	This file is part of solidity.
 
-	cpp-elementrem is free software: you can redistribute it and/or modify
+	solidity is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
 	the Free Software Foundation, either version 3 of the License, or
 	(at your option) any later version.
 
-	cpp-elementrem is distributed in the hope that it will be useful,
+	solidity is distributed in the hope that it will be useful,
 	but WITHOUT ANY WARRANTY; without even the implied warranty of
 	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with cpp-elementrem.  If not, see <http://www.gnu.org/licenses/>.
+	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
-/** @file Compiler.cpp
- * @author Gav Wood <i@gavwood.com>
- * 
- */
+
+
+
+
 
 #include "Compiler.h"
 #include "Parser.h"
@@ -34,8 +34,7 @@ bytes dev::ele::compileLLL(string const& _src, bool _opt, vector<string>* _error
 	{
 		CompilerState cs;
 		cs.populateStandard();
-		auto f = CodeFragment::compile(_src, cs);
-		bytes ret = f.assembly(cs).optimise(_opt).assemble().bytecode;
+		bytes ret = CodeFragment::compile(_src, cs).assembly(cs).optimise(_opt).assemble().bytecode;
 		for (auto i: cs.treesToKill)
 			killBigints(i);
 		return ret;
@@ -45,13 +44,21 @@ bytes dev::ele::compileLLL(string const& _src, bool _opt, vector<string>* _error
 		if (_errors)
 		{
 			_errors->push_back("Parse error.");
-			_errors->push_back(diagnostic_information(_e));
+			_errors->push_back(boost::diagnostic_information(_e));
 		}
 	}
-	catch (std::exception)
+	catch (std::exception const& _e)
 	{
 		if (_errors)
-			_errors->push_back("Parse error.");
+		{
+			_errors->push_back("Parse exception.");
+			_errors->push_back(boost::diagnostic_information(_e));
+		}
+	}
+	catch (...)
+	{
+		if (_errors)
+			_errors->push_back("Internal compiler exception.");
 	}
 	return bytes();
 }
@@ -70,12 +77,22 @@ std::string dev::ele::compileLLLToAsm(std::string const& _src, bool _opt, std::v
 	catch (Exception const& _e)
 	{
 		if (_errors)
-			_errors->push_back(diagnostic_information(_e));
+		{
+			_errors->push_back("Parse error.");
+			_errors->push_back(boost::diagnostic_information(_e));
+		}
 	}
-	catch (std::exception)
+	catch (std::exception const& _e)
+	{
+		if (_errors) {
+			_errors->push_back("Parse exception.");
+			_errors->push_back(boost::diagnostic_information(_e));
+		}
+	}
+	catch (...)
 	{
 		if (_errors)
-			_errors->push_back("Parse error.");
+			_errors->push_back("Internal compiler exception.");
 	}
 	return string();
 }
@@ -83,11 +100,17 @@ std::string dev::ele::compileLLLToAsm(std::string const& _src, bool _opt, std::v
 string dev::ele::parseLLL(string const& _src)
 {
 	sp::utree o;
+
 	try
 	{
 		parseTreeLLL(_src, o);
 	}
-	catch (...) {}
+	catch (...)
+	{
+		killBigints(o);
+		return string();
+	}
+
 	ostringstream ret;
 	debugOutAST(ret, o);
 	killBigints(o);

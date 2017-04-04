@@ -1,24 +1,24 @@
 /*
-    This file is part of cpp-elementrem.
+    This file is part of solidity.
 
-    cpp-elementrem is free software: you can redistribute it and/or modify
+    solidity is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
-    cpp-elementrem is distributed in the hope that it will be useful,
+    solidity is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with cpp-elementrem.  If not, see <http://www.gnu.org/licenses/>.
+    along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
-/**
- * 
- * 
- * Scope - object that holds declaration of names.
- */
+
+
+
+
+
 
 #include <libsolidity/analysis/DeclarationContainer.h>
 #include <libsolidity/ast/AST.h>
@@ -42,12 +42,33 @@ Declaration const* DeclarationContainer::conflictingDeclaration(
 	if (m_invisibleDeclarations.count(*_name))
 		declarations += m_invisibleDeclarations.at(*_name);
 
-	if (dynamic_cast<FunctionDefinition const*>(&_declaration))
+	if (
+		dynamic_cast<FunctionDefinition const*>(&_declaration) ||
+		dynamic_cast<EventDefinition const*>(&_declaration)
+	)
 	{
-		// check that all other declarations with the same name are functions
+		// check that all other declarations with the same name are functions or a public state variable or events.
+		// And then check that the signatures are different.
 		for (Declaration const* declaration: declarations)
-			if (!dynamic_cast<FunctionDefinition const*>(declaration))
+		{
+			if (auto variableDeclaration = dynamic_cast<VariableDeclaration const*>(declaration))
+			{
+				if (variableDeclaration->isStateVariable() && !variableDeclaration->isConstant() && variableDeclaration->isPublic())
+					continue;
 				return declaration;
+			}
+			if (
+				dynamic_cast<FunctionDefinition const*>(&_declaration) &&
+				!dynamic_cast<FunctionDefinition const*>(declaration)
+			)
+				return declaration;
+			if (
+				dynamic_cast<EventDefinition const*>(&_declaration) &&
+				!dynamic_cast<EventDefinition const*>(declaration)
+			)
+				return declaration;
+			// Or, continue.
+		}
 	}
 	else if (declarations.size() == 1 && declarations.front() == &_declaration)
 		return nullptr;

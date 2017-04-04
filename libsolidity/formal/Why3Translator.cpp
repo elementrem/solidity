@@ -1,24 +1,24 @@
 /*
-	This file is part of cpp-elementrem.
+	This file is part of solidity.
 
-	cpp-elementrem is free software: you can redistribute it and/or modify
+	solidity is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
 	the Free Software Foundation, either version 3 of the License, or
 	(at your option) any later version.
 
-	cpp-elementrem is distributed in the hope that it will be useful,
+	solidity is distributed in the hope that it will be useful,
 	but WITHOUT ANY WARRANTY; without even the implied warranty of
 	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with cpp-elementrem.  If not, see <http://www.gnu.org/licenses/>.
+	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
-/**
- * 
- * 
- * Component that translates Solidity code into the why3 programming language.
- */
+
+
+
+
+
 
 #include <libsolidity/formal/Why3Translator.h>
 #include <boost/algorithm/string/predicate.hpp>
@@ -410,6 +410,16 @@ bool Why3Translator::visit(WhileStatement const& _node)
 {
 	addSourceFromDocStrings(_node.annotation());
 
+	// Why3 does not appear to support do-while loops,
+	// so we will simulate them by performing a while
+	// loop with the body prepended once.
+
+	if (_node.isDoWhile())
+	{
+		visitIndentedUnlessBlock(_node.body());
+		newLine();
+	}
+
 	add("while ");
 	_node.condition().accept(*this);
 	newLine();
@@ -754,6 +764,20 @@ bool Why3Translator::visit(Literal const& _literal)
 	default:
 		error(_literal, "Not supported.");
 	}
+	return false;
+}
+
+bool Why3Translator::visit(PragmaDirective const& _pragma)
+{
+	if (_pragma.tokens().empty())
+		error(_pragma, "Not supported");
+	else if (_pragma.literals().empty())
+		error(_pragma, "Not supported");
+	else if (_pragma.literals()[0] != "solidity")
+		error(_pragma, "Not supported");
+	else if (_pragma.tokens()[0] != Token::Identifier)
+		error(_pragma, "A literal 'solidity' is not an identifier.  Strange");
+
 	return false;
 }
 

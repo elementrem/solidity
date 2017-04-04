@@ -1,25 +1,25 @@
 /*
-	This file is part of cpp-elementrem.
+	This file is part of solidity.
 
-	cpp-elementrem is free software: you can redistribute it and/or modify
+	solidity is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
 	the Free Software Foundation, either version 3 of the License, or
 	(at your option) any later version.
 
-	cpp-elementrem is distributed in the hope that it will be useful,
+	solidity is distributed in the hope that it will be useful,
 	but WITHOUT ANY WARRANTY; without even the implied warranty of
 	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with cpp-elementrem.  If not, see <http://www.gnu.org/licenses/>.
+	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
-/**
- * 
- * 
- * 
- * Container of the (implicit and explicit) global objects.
- */
+
+
+
+
+
+
 
 #include <memory>
 #include <libsolidity/analysis/GlobalContext.h>
@@ -48,6 +48,8 @@ m_magicVariables(vector<shared_ptr<MagicVariableDeclaration const>>{make_shared<
 						make_shared<FunctionType>(strings{"uint256", "uint256", "uint256"}, strings{"uint256"}, FunctionType::Location::MulMod)),
 					make_shared<MagicVariableDeclaration>("sha3",
 							make_shared<FunctionType>(strings(), strings{"bytes32"}, FunctionType::Location::SHA3, true)),
+					make_shared<MagicVariableDeclaration>("keccak256",
+							make_shared<FunctionType>(strings(), strings{"bytes32"}, FunctionType::Location::SHA3, true)),
 					make_shared<MagicVariableDeclaration>("log0",
 							make_shared<FunctionType>(strings{"bytes32"}, strings{}, FunctionType::Location::Log0)),
 					make_shared<MagicVariableDeclaration>("log1",
@@ -63,7 +65,13 @@ m_magicVariables(vector<shared_ptr<MagicVariableDeclaration const>>{make_shared<
 					make_shared<MagicVariableDeclaration>("ecrecover",
 							make_shared<FunctionType>(strings{"bytes32", "uint8", "bytes32", "bytes32"}, strings{"address"}, FunctionType::Location::ECRecover)),
 					make_shared<MagicVariableDeclaration>("ripemd160",
-							make_shared<FunctionType>(strings(), strings{"bytes20"}, FunctionType::Location::RIPEMD160, true))})
+							make_shared<FunctionType>(strings(), strings{"bytes20"}, FunctionType::Location::RIPEMD160, true)),
+					make_shared<MagicVariableDeclaration>("assert",
+							make_shared<FunctionType>(strings{"bool"}, strings{}, FunctionType::Location::Assert)),
+					make_shared<MagicVariableDeclaration>("require",
+							make_shared<FunctionType>(strings{"bool"}, strings{}, FunctionType::Location::Require)),
+					make_shared<MagicVariableDeclaration>("revert",
+							make_shared<FunctionType>(strings(), strings(), FunctionType::Location::Revert))})
 {
 }
 

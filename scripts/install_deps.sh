@@ -57,7 +57,7 @@ detect_linux_distro() {
         # extract 'foo' from NAME=foo, only on the line with NAME=foo
         DISTRO=$(sed -n -e 's/^NAME="\(.*\)\"/\1/p' /etc/os-release)
     elif [ -f /etc/centos-release ]; then
-	DISTRO=CentOS
+        DISTRO=CentOS
     else
         DISTRO=''
     fi
@@ -83,12 +83,6 @@ case $(uname -s) in
                 ;;
             10.12)
                 echo "Installing solidity dependencies on macOS 10.12 Sierra."
-                echo ""
-                echo "NOTE - You are in unknown territory with this preview OS."
-                echo "Even Homebrew doesn't have official support yet, and there are"
-                echo "known issues (see https://github.com/elementrem/webthree-umbrella/issues/614)."
-                echo "If you would like to partner with us to work through these issues, that"
-                echo "would be fantastic.  Please just comment on that issue.  Thanks!"
                 ;;
             *)
                 echo "Unsupported macOS version."
@@ -99,20 +93,17 @@ case $(uname -s) in
 
         # Check for Homebrew install and abort if it is not installed.
         brew -v > /dev/null 2>&1 || { echo >&2 "ERROR - solidity requires a Homebrew install.  See http://brew.sh."; exit 1; }
-
         brew update
-        brew upgrade
-
         brew install boost
         brew install cmake
-        brew install jsoncpp
-
-        # We should really 'brew install' our ele client here, but at the time of writing
-        # the bottle is known broken, so we will just cheat and use a hardcoded ZIP for
-        # the time being, which is good enough.   The cause of the breaks will go away
-        # when we commit the repository reorg changes anyway.
-        curl -L -O https://github.com/bobsummerwill/cpp-elementrem/releases/download/v1.3.0/cpp-elementrem-osx-mavericks-v1.3.0.zip
-        unzip cpp-elementrem-osx-mavericks-v1.3.0.zip
+        if ["$CI" = true]; then
+            brew upgrade cmake
+            brew tap elementrem/elementrem
+            brew install cpp-elementrem
+            brew linkapps cpp-elementrem
+        else
+            brew upgrade
+        fi
 
         ;;
 
@@ -145,11 +136,13 @@ case $(uname -s) in
 
                 # All our dependencies can be found in the Arch Linux official repositories.
                 # See https://wiki.archlinux.org/index.php/Official_repositories
+                # Also adding elementrem-git to allow for testing with the `ele` client
                 sudo pacman -Sy \
                     base-devel \
                     boost \
                     cmake \
                     git \
+                    elementrem-git \
                 ;;
 
 #------------------------------------------------------------------------------
@@ -164,7 +157,7 @@ case $(uname -s) in
                 # See https://pkgs.alpinelinux.org/
 
                 apk update
-                apk add boost-dev build-base cmake jsoncpp-dev
+                apk add boost-dev build-base cmake
 
                 ;;
 
@@ -212,14 +205,12 @@ case $(uname -s) in
                 # Install "normal packages"
                 sudo apt-get -y update
                 sudo apt-get -y install \
-                    python-sphinx \
                     build-essential \
                     cmake \
                     g++ \
                     gcc \
                     git \
                     libboost-all-dev \
-                    libjsoncpp-dev \
                     unzip
 
                 ;;
@@ -317,18 +308,17 @@ case $(uname -s) in
 
                 sudo apt-get -y update
                 sudo apt-get -y install \
-                    python-sphinx \
                     build-essential \
                     cmake \
                     git \
-                    libboost-all-dev \
-                    libjsoncpp-dev
-
-                # Install 'ele', for use in the Solidity Tests-over-IPC.
-                sudo add-apt-repository -y ppa:elementrem/elementrem
-                sudo add-apt-repository -y ppa:elementrem/elementrem-dev
-                sudo apt-get -y update
-                sudo apt-get -y install ele
+                    libboost-all-dev
+                if [ "$CI" = true ]; then
+                    # Install 'ele', for use in the Solidity Tests-over-IPC.
+                    sudo add-apt-repository -y ppa:elementrem/elementrem
+                    sudo add-apt-repository -y ppa:elementrem/elementrem-dev
+                    sudo apt-get -y update
+                    sudo apt-get -y install ele
+                fi
 
                 ;;
 
@@ -363,9 +353,6 @@ case $(uname -s) in
                     sudo yum -y remove boost-devel
                     sudo wget http://repo.enetres.net/enetres.repo -O /etc/yum.repos.d/enetres.repo
                     sudo yum install boost-devel
-
-                    # And finally jsoncpp
-                    sudo yum -y install jsoncpp-devel
                 else
                     echo "Aborted CentOS Solidity Dependency Installation";
                     exit 1

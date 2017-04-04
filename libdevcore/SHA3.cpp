@@ -1,30 +1,30 @@
 /*
-	This file is part of cpp-elementrem.
+	This file is part of solidity.
 
-	cpp-elementrem is free software: you can redistribute it and/or modify
+	solidity is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
 	the Free Software Foundation, either version 3 of the License, or
 	(at your option) any later version.
 
-	cpp-elementrem is distributed in the hope that it will be useful,
+	solidity is distributed in the hope that it will be useful,
 	but WITHOUT ANY WARRANTY; without even the implied warranty of
 	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with cpp-elementrem.  If not, see <http://www.gnu.org/licenses/>.
+	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
-/** @file SHA3.cpp
- * @author Gav Wood <i@gavwood.com>
- * 
- */
+
+
+
+
 
 #include "SHA3.h"
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include "picosha2.h"
+
 using namespace std;
 using namespace dev;
 
@@ -49,12 +49,19 @@ namespace keccak
 #define decsha3(bits) \
   int sha3_##bits(uint8_t*, size_t, const uint8_t*, size_t);
 
+#define deckeccak(bits) \
+  int keccak##bits(uint8_t*, size_t, const uint8_t*, size_t);
+
 decshake(128)
 decshake(256)
 decsha3(224)
 decsha3(256)
 decsha3(384)
 decsha3(512)
+deckeccak(224)
+deckeccak(256)
+deckeccak(384)
+deckeccak(512)
 
 /******** The Keccak-f[1600] permutation ********/
 
@@ -192,6 +199,14 @@ static inline int hash(uint8_t* out, size_t outlen,
 	if (outlen > (bits/8)) {                                      \
 	  return -1;                                                  \
 	}                                                             \
+	return hash(out, outlen, in, inlen, 200 - (bits / 4), 0x06);  \
+  }
+#define defkeccak(bits)                                             \
+  int keccak##bits(uint8_t* out, size_t outlen,                    \
+				  const uint8_t* in, size_t inlen) {              \
+	if (outlen > (bits/8)) {                                      \
+	  return -1;                                                  \
+	}                                                             \
 	return hash(out, outlen, in, inlen, 200 - (bits / 4), 0x01);  \
   }
 
@@ -205,17 +220,20 @@ defsha3(256)
 defsha3(384)
 defsha3(512)
 
+/*** KECCAK FOFs ***/
+defkeccak(224)
+defkeccak(256)
+defkeccak(384)
+defkeccak(512)
+
 }
 
-unsigned g_sha3Counter = 0;
-
-bool sha3(bytesConstRef _input, bytesRef o_output)
+bool keccak256(bytesConstRef _input, bytesRef o_output)
 {
 	// FIXME: What with unaligned memory?
 	if (o_output.size() != 32)
 		return false;
-	++g_sha3Counter;
-	keccak::sha3_256(o_output.data(), 32, _input.data(), _input.size());
+	keccak::keccak256(o_output.data(), 32, _input.data(), _input.size());
 //	keccak::keccak(ret.data(), 32, (uint64_t const*)_input.data(), _input.size());
 	return true;
 }

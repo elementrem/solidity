@@ -1,18 +1,18 @@
 /*
-	This file is part of cpp-elementrem.
+	This file is part of solidity.
 
-	cpp-elementrem is free software: you can redistribute it and/or modify
+	solidity is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
 	the Free Software Foundation, either version 3 of the License, or
 	(at your option) any later version.
 
-	cpp-elementrem is distributed in the hope that it will be useful,
+	solidity is distributed in the hope that it will be useful,
 	but WITHOUT ANY WARRANTY; without even the implied warranty of
 	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with cpp-elementrem.  If not, see <http://www.gnu.org/licenses/>.
+	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #pragma once
@@ -39,7 +39,7 @@ public:
 	/// @param _errors the reference to the list of errors and warnings to add them found during type checking.
 	SyntaxChecker(ErrorList& _errors): m_errors(_errors) {}
 
-	bool checkSyntax(SourceUnit const& _sourceUnit);
+	bool checkSyntax(ASTNode const& _astRoot);
 
 private:
 	/// Adds a new error to the list of errors.

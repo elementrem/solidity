@@ -1,24 +1,24 @@
 /*
-	This file is part of cpp-elementrem.
+	This file is part of solidity.
 
-	cpp-elementrem is free software: you can redistribute it and/or modify
+	solidity is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
 	the Free Software Foundation, either version 3 of the License, or
 	(at your option) any later version.
 
-	cpp-elementrem is distributed in the hope that it will be useful,
+	solidity is distributed in the hope that it will be useful,
 	but WITHOUT ANY WARRANTY; without even the implied warranty of
 	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with cpp-elementrem.  If not, see <http://www.gnu.org/licenses/>.
+	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
-/**
- * 
- * 
- * Tests for high level features like import.
- */
+
+
+
+
+
 
 #include <string>
 #include <boost/test/unit_test.hpp>
@@ -106,6 +106,7 @@ BOOST_AUTO_TEST_CASE(library_name_clash)
 	CompilerStack c;
 	c.addSource("a", "library A {} pragma solidity >=0.0;");
 	c.addSource("b", "library A {} pragma solidity >=0.0;");
+	c.addSource("c", "import {A} from \"./a\"; import {A} from \"./b\";");
 	BOOST_CHECK(!c.compile());
 }
 
@@ -162,6 +163,43 @@ BOOST_AUTO_TEST_CASE(context_dependent_remappings)
 	c.addSource("s_1.4.6/s.sol", "contract SSix {} pragma solidity >=0.0;");
 	c.addSource("s_1.4.7/s.sol", "contract SSeven {} pragma solidity >=0.0;");
 	BOOST_CHECK(c.compile());
+}
+
+BOOST_AUTO_TEST_CASE(filename_with_period)
+{
+	CompilerStack c;
+	c.addSource("a/a.sol", "import \".b.sol\"; contract A is B {} pragma solidity >=0.0;");
+	c.addSource("a/.b.sol", "contract B {} pragma solidity >=0.0;");
+	BOOST_CHECK(!c.compile());
+}
+
+BOOST_AUTO_TEST_CASE(context_dependent_remappings_ensure_default_and_module_preserved)
+{
+	CompilerStack c;
+	c.setRemappings(vector<string>{"foo=vendor/foo_2.0.0", "vendor/bar:foo=vendor/foo_1.0.0", "bar=vendor/bar"});
+	c.addSource("main.sol", "import \"foo/foo.sol\"; import {Bar} from \"bar/bar.sol\"; contract Main is Foo2, Bar {} pragma solidity >=0.0;");
+	c.addSource("vendor/bar/bar.sol", "import \"foo/foo.sol\"; contract Bar {Foo1 foo;} pragma solidity >=0.0;");
+	c.addSource("vendor/foo_1.0.0/foo.sol", "contract Foo1 {} pragma solidity >=0.0;");
+	c.addSource("vendor/foo_2.0.0/foo.sol", "contract Foo2 {} pragma solidity >=0.0;");
+	BOOST_CHECK(c.compile());
+}
+
+BOOST_AUTO_TEST_CASE(context_dependent_remappings_order_independent)
+{
+	CompilerStack c;
+	c.setRemappings(vector<string>{"a:x/y/z=d", "a/b:x=e"});
+	c.addSource("a/main.sol", "import \"x/y/z/z.sol\"; contract Main is D {} pragma solidity >=0.0;");
+	c.addSource("a/b/main.sol", "import \"x/y/z/z.sol\"; contract Main is E {} pragma solidity >=0.0;");
+	c.addSource("d/z.sol", "contract D {} pragma solidity >=0.0;");
+	c.addSource("e/y/z/z.sol", "contract E {} pragma solidity >=0.0;");
+	BOOST_CHECK(c.compile());
+	CompilerStack d;
+	d.setRemappings(vector<string>{"a/b:x=e", "a:x/y/z=d"});
+	d.addSource("a/main.sol", "import \"x/y/z/z.sol\"; contract Main is D {} pragma solidity >=0.0;");
+	d.addSource("a/b/main.sol", "import \"x/y/z/z.sol\"; contract Main is E {} pragma solidity >=0.0;");
+	d.addSource("d/z.sol", "contract D {} pragma solidity >=0.0;");
+	d.addSource("e/y/z/z.sol", "contract E {} pragma solidity >=0.0;");
+	BOOST_CHECK(d.compile());
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -1,23 +1,23 @@
 /*
-	This file is part of cpp-elementrem.
+	This file is part of solidity.
 
-	cpp-elementrem is free software: you can redistribute it and/or modify
+	solidity is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
 	the Free Software Foundation, either version 3 of the License, or
 	(at your option) any later version.
 
-	cpp-elementrem is distributed in the hope that it will be useful,
+	solidity is distributed in the hope that it will be useful,
 	but WITHOUT ANY WARRANTY; without even the implied warranty of
 	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with cpp-elementrem.  If not, see <http://www.gnu.org/licenses/>.
+	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
-/** @file ABI.h
- * @author Gav Wood <i@gavwood.com>
- * 
- */
+
+
+
+
 
 #pragma once
 
@@ -63,7 +63,7 @@ template <class T, class ... U> bytes abiInAux(T const& _t, U const& ... _u)
 
 template <class ... T> bytes abiIn(std::string _id, T const& ... _t)
 {
-	return sha3(_id).ref().cropped(0, 4).toBytes() + abiInAux(_t ...);
+	return keccak256(_id).ref().cropped(0, 4).toBytes() + abiInAux(_t ...);
 }
 
 template <class T> struct ABIDeserialiser {};

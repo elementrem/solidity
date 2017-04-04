@@ -1,18 +1,18 @@
 /*
-	This file is part of cpp-elementrem.
+	This file is part of solidity.
 
-	cpp-elementrem is free software: you can redistribute it and/or modify
+	solidity is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
 	the Free Software Foundation, either version 3 of the License, or
 	(at your option) any later version.
 
-	cpp-elementrem is distributed in the hope that it will be useful,
+	solidity is distributed in the hope that it will be useful,
 	but WITHOUT ANY WARRANTY; without even the implied warranty of
 	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with cpp-elementrem.  If not, see <http://www.gnu.org/licenses/>.
+	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include <libsolidity/analysis/SyntaxChecker.h>
@@ -26,9 +26,9 @@ using namespace dev;
 using namespace dev::solidity;
 
 
-bool SyntaxChecker::checkSyntax(SourceUnit const& _sourceUnit)
+bool SyntaxChecker::checkSyntax(ASTNode const& _astRoot)
 {
-	_sourceUnit.accept(*this);
+	_astRoot.accept(*this);
 	return Error::containsOnlyWarnings(m_errors);
 }
 
@@ -52,13 +52,22 @@ void SyntaxChecker::endVisit(SourceUnit const& _sourceUnit)
 {
 	if (!m_versionPragmaFound)
 	{
+		string errorString("Source file does not specify required compiler version!");
+		SemVerVersion recommendedVersion{string(VersionString)};
+		if (!recommendedVersion.isPrerelease())
+			errorString +=
+				"Consider adding \"pragma solidity ^" +
+				to_string(recommendedVersion.major()) +
+				string(".") +
+				to_string(recommendedVersion.minor()) +
+				string(".") +
+				to_string(recommendedVersion.patch());
+				string(";\"");
+
 		auto err = make_shared<Error>(Error::Type::Warning);
 		*err <<
 			errinfo_sourceLocation(_sourceUnit.location()) <<
-			errinfo_comment(
-				string("Source file does not specify required compiler version! ") +
-				string("Consider adding \"pragma solidity ^") + VersionNumber + string(";\".")
-			);
+			errinfo_comment(errorString);
 		m_errors.push_back(err);
 	}
 }
@@ -67,7 +76,7 @@ bool SyntaxChecker::visit(PragmaDirective const& _pragma)
 {
 	solAssert(!_pragma.tokens().empty(), "");
 	solAssert(_pragma.tokens().size() == _pragma.literals().size(), "");
-	if (_pragma.tokens()[0] != Token::Identifier && _pragma.literals()[0] != "solidity")
+	if (_pragma.tokens()[0] != Token::Identifier || _pragma.literals()[0] != "solidity")
 		syntaxError(_pragma.location(), "Unknown pragma \"" + _pragma.literals()[0] + "\"");
 	else
 	{

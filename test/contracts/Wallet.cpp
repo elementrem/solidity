@@ -1,24 +1,24 @@
 /*
-	This file is part of cpp-elementrem.
+	This file is part of solidity.
 
-	cpp-elementrem is free software: you can redistribute it and/or modify
+	solidity is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
 	the Free Software Foundation, either version 3 of the License, or
 	(at your option) any later version.
 
-	cpp-elementrem is distributed in the hope that it will be useful,
+	solidity is distributed in the hope that it will be useful,
 	but WITHOUT ANY WARRANTY; without even the implied warranty of
 	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with cpp-elementrem.  If not, see <http://www.gnu.org/licenses/>.
+	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
-/**
- * 
- * 
- * Tests for a (comparatively) complex multisig wallet contract.
- */
+
+
+
+
+
 
 #include <string>
 #include <tuple>
@@ -35,6 +35,7 @@
 #include <test/libsolidity/SolidityExecutionFramework.h>
 
 using namespace std;
+using namespace dev::test;
 
 namespace dev
 {
@@ -44,11 +45,11 @@ namespace test
 {
 
 static char const* walletCode = R"DELIMITER(
+
 //sol Wallet
 // Multi-sig, daily-limited account proxy/wallet.
-// 
-// 
-// inheritable "property" contract that enables methods to be protected by requiring the acquiescence of either a
+// @authors:
+// inheritable "property" contract that enables methods to be protected by requiring the acquiescence of element a
 // single, or, crucially, each of a number of, designated owners.
 // usage:
 // use modifiers onlyowner (just own owned) or onlymanyowners(hash), whereby the same hash must be provided by
@@ -368,7 +369,7 @@ contract Wallet is multisig, multiowned, daylimit {
 
 	// constructor - just pass on the owner array to the multiowned and
 	// the limit to daylimit
-	function Wallet(address[] _owners, uint _required, uint _daylimit)
+	function Wallet(address[] _owners, uint _required, uint _daylimit) payable
 			multiowned(_owners, _required) daylimit(_daylimit) {
 	}
 
@@ -435,7 +436,7 @@ contract Wallet is multisig, multiowned, daylimit {
 
 static unique_ptr<bytes> s_compiledWallet;
 
-class WalletTestFramework: public ExecutionFramework
+class WalletTestFramework: public SolidityExecutionFramework
 {
 protected:
 	void deployWallet(
@@ -447,7 +448,6 @@ protected:
 	{
 		if (!s_compiledWallet)
 		{
-			m_optimize = true;
 			m_compiler.reset(false);
 			m_compiler.addSource("", walletCode);
 			ELE_TEST_REQUIRE_NO_THROW(m_compiler.compile(m_optimize, m_optimizeRuns), "Compiling contract failed");
@@ -588,7 +588,7 @@ BOOST_AUTO_TEST_CASE(revoke_addOwner)
 	BOOST_REQUIRE(callContractFunction("changeRequirement(uint256)", u256(3)) == encodeArgs());
 	// add a new owner
 	Address deployer = m_sender;
-	h256 opHash = sha3(FixedHash<4>(dev::sha3("addOwner(address)")).asBytes() + h256(0x33).asBytes());
+	h256 opHash = dev::keccak256(FixedHash<4>(dev::keccak256("addOwner(address)")).asBytes() + h256(0x33).asBytes());
 	BOOST_REQUIRE(callContractFunction("addOwner(address)", h256(0x33)) == encodeArgs());
 	BOOST_REQUIRE(callContractFunction("isOwner(address)", h256(0x33)) == encodeArgs(false));
 	m_sender = account(0);
