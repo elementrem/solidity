@@ -1,29 +1,30 @@
 /*
-    This file is part of cpp-elementrem.
+    This file is part of solidity.
 
-    cpp-elementrem is free software: you can redistribute it and/or modify
+    solidity is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
-    cpp-elementrem is distributed in the hope that it will be useful,
+    solidity is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with cpp-elementrem.  If not, see <http://www.gnu.org/licenses/>.
+    along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
-/**
- * 
- * 
- * Converts the AST into json format
- */
+
+
+
+
+
 
 #include <libsolidity/ast/ASTJsonConverter.h>
 #include <boost/algorithm/string/join.hpp>
 #include <libdevcore/UTF8.h>
 #include <libsolidity/ast/AST.h>
+#include <libsolidity/interface/Exceptions.h>
 
 using namespace std;
 
@@ -41,7 +42,7 @@ void ASTJsonConverter::addJsonNode(
 {
 	Json::Value node;
 
-	node["id"] = reinterpret_cast<Json::UInt64>(&_node);
+	node["id"] = Json::UInt64(_node.id());
 	node["src"] = sourceLocationToString(_node.location());
 	node["name"] = _nodeName;
 	if (_attributes.size() != 0)
@@ -123,7 +124,7 @@ bool ASTJsonConverter::visit(ContractDefinition const& _node)
 {
 	Json::Value linearizedBaseContracts(Json::arrayValue);
 	for (auto const& baseContract: _node.annotation().linearizedBaseContracts)
-		linearizedBaseContracts.append(reinterpret_cast<Json::UInt64>(baseContract));
+		linearizedBaseContracts.append(Json::UInt64(baseContract->id()));
 	addJsonNode(_node, "ContractDefinition", {
 		make_pair("name", _node.name()),
 		make_pair("isLibrary", _node.isLibrary()),
@@ -173,8 +174,9 @@ bool ASTJsonConverter::visit(FunctionDefinition const& _node)
 {
 	addJsonNode(_node, "FunctionDefinition", {
 		make_pair("name", _node.name()),
-		make_pair("public", _node.isPublic()),
-		make_pair("constant", _node.isDeclaredConst())
+		make_pair("constant", _node.isDeclaredConst()),
+		make_pair("payable", _node.isPayable()),
+		make_pair("visibility", visibility(_node.visibility()))
 	}, true);
 	return true;
 }
@@ -225,6 +227,16 @@ bool ASTJsonConverter::visit(UserDefinedTypeName const& _node)
 	return true;
 }
 
+bool ASTJsonConverter::visit(FunctionTypeName const& _node)
+{
+	addJsonNode(_node, "FunctionTypeName", {
+		make_pair("payable", _node.isPayable()),
+		make_pair("visibility", visibility(_node.visibility())),
+		make_pair("constant", _node.isDeclaredConst())
+	}, true);
+	return true;
+}
+
 bool ASTJsonConverter::visit(Mapping const& _node)
 {
 	addJsonNode(_node, "Mapping", {}, true);
@@ -263,7 +275,11 @@ bool ASTJsonConverter::visit(IfStatement const& _node)
 
 bool ASTJsonConverter::visit(WhileStatement const& _node)
 {
-	addJsonNode(_node, "WhileStatement", {}, true);
+	addJsonNode(
+		_node,
+		_node.isDoWhile() ? "DoWhileStatement" : "WhileStatement",
+		{},
+		true);
 	return true;
 }
 
@@ -299,7 +315,7 @@ bool ASTJsonConverter::visit(Throw const& _node)
 
 bool ASTJsonConverter::visit(VariableDeclarationStatement const& _node)
 {
-	addJsonNode(_node, "VariableDefinitionStatement", {}, true);
+	addJsonNode(_node, "VariableDeclarationStatement", {}, true);
 	return true;
 }
 
@@ -388,7 +404,7 @@ bool ASTJsonConverter::visit(Identifier const& _node)
 
 bool ASTJsonConverter::visit(ElementaryTypeNameExpression const& _node)
 {
-	addJsonNode(_node, "ElementaryTypenameExpression", {
+	addJsonNode(_node, "ElementaryTypeNameExpression", {
 		make_pair("value", _node.typeName().toString()),
 		make_pair("type", type(_node))
 	});
@@ -398,9 +414,8 @@ bool ASTJsonConverter::visit(ElementaryTypeNameExpression const& _node)
 bool ASTJsonConverter::visit(Literal const& _node)
 {
 	char const* tokenString = Token::toString(_node.token());
-	size_t invalidPos = 0;
 	Json::Value value{_node.value()};
-	if (!dev::validate(_node.value(), invalidPos))
+	if (!dev::validateUTF8(_node.value()))
 		value = Json::nullValue;
 	Token::Value subdenomination = Token::Value(_node.subDenomination());
 	addJsonNode(_node, "Literal", {
@@ -500,6 +515,11 @@ void ASTJsonConverter::endVisit(ElementaryTypeName const&)
 
 void ASTJsonConverter::endVisit(UserDefinedTypeName const&)
 {
+}
+
+void ASTJsonConverter::endVisit(FunctionTypeName const&)
+{
+	goUp();
 }
 
 void ASTJsonConverter::endVisit(Mapping const&)
@@ -631,6 +651,23 @@ void ASTJsonConverter::process()
 	if (!processed)
 		m_ast->accept(*this);
 	processed = true;
+}
+
+string ASTJsonConverter::visibility(Declaration::Visibility const& _visibility)
+{
+	switch (_visibility)
+	{
+	case Declaration::Visibility::Private:
+		return "private";
+	case Declaration::Visibility::Internal:
+		return "internal";
+	case Declaration::Visibility::Public:
+		return "public";
+	case Declaration::Visibility::External:
+		return "external";
+	default:
+		BOOST_THROW_EXCEPTION(InternalCompilerError() << errinfo_comment("Unknown declaration visibility."));
+	}
 }
 
 string ASTJsonConverter::type(Expression const& _expression)

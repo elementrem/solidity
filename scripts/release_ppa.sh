@@ -49,6 +49,10 @@ cd $distribution
 git clone --recursive https://github.com/elementrem/solidity.git -b "$branch"
 mv solidity solc
 
+# Fetch jsoncpp dependency
+mkdir -p ./solc/deps/downloads/ 2>/dev/null || true
+wget -O ./solc/deps/downloads/jsoncpp-1.7.7.tar.gz https://github.com/open-source-parsers/jsoncpp/archive/1.7.7.tar.gz
+
 # Determine version
 cd solc
 version=`grep -oP "PROJECT_VERSION \"?\K[0-9.]+(?=\")"? CMakeLists.txt`
@@ -59,7 +63,7 @@ commitdate=`git show --format=%ci HEAD | head -n 1 | cut - -b1-10 | sed -e 's/-0
 echo "$commithash" > commit_hash.txt
 if [ $branch = develop ]
 then
-    debversion="$version-nightly-$commitdate-$commithash"
+    debversion="$version-develop-$commitdate-$commithash"
 else
     debversion="$version"
     echo -n > prerelease.txt # proper release
@@ -76,21 +80,6 @@ cp /tmp/${packagename}_${debversion}.orig.tar.gz ../
 
 # Create debian package information
 
-case $distribution in
-    trusty)
-        jsoncpplib=libjsoncpp0
-        ;;
-    vivid)
-        jsoncpplib=libjsoncpp0
-        ;;
-    wily)
-        jsoncpplib=libjsoncpp0v5
-        ;;
-    *)
-        jsoncpplib=libjsoncpp1
-        ;;
-esac
-
 mkdir debian
 echo 9 > debian/compat
 cat <<EOF > debian/control
@@ -99,7 +88,6 @@ Section: science
 Priority: extra
 Maintainer: Christian (Buildserver key) <builds@elementrem.org>
 Build-Depends: debhelper (>= 9.0.0),
-               libcryptopp-dev,
                cmake,
                g++-4.8,
                git,
@@ -107,8 +95,7 @@ Build-Depends: debhelper (>= 9.0.0),
                libboost-all-dev,
                automake,
                libtool,
-               scons,
-               libjsoncpp-dev
+               scons
 Standards-Version: 3.9.5
 Homepage: https://elementrem.org
 Vcs-Git: git://github.com/elementrem/solidity.git
@@ -117,7 +104,7 @@ Vcs-Browser: https://github.com/elementrem/solidity
 Package: solc
 Architecture: any-i386 any-amd64
 Multi-Arch: same
-Depends: \${shlibs:Depends}, \${misc:Depends}, $jsoncpplib
+Depends: \${shlibs:Depends}, \${misc:Depends}
 Replaces: lllc (<< 1:0.3.6)
 Conflicts: libelementrem (<= 1.2.9)
 Description: Solidity compiler.
@@ -161,7 +148,7 @@ Upstream-Name: solc
 Source: https://github.com/elementrem/solidity
 
 Files: *
-Copyright: 2014-2016 Elementrem
+Copyright: 2016-2017 Elementrem
 License: GPL-3.0+
 
 Files: debian/*

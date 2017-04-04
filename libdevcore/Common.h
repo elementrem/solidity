@@ -1,25 +1,25 @@
 /*
-	This file is part of cpp-elementrem.
+	This file is part of solidity.
 
-	cpp-elementrem is free software: you can redistribute it and/or modify
+	solidity is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
 	the Free Software Foundation, either version 3 of the License, or
 	(at your option) any later version.
 
-	cpp-elementrem is distributed in the hope that it will be useful,
+	solidity is distributed in the hope that it will be useful,
 	but WITHOUT ANY WARRANTY; without even the implied warranty of
 	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with cpp-elementrem.  If not, see <http://www.gnu.org/licenses/>.
+	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
-/** @file Common.h
- * @author Gav Wood <i@gavwood.com>
- * 
- *
- * Very common stuff (i.e. that every other header needs except vector_ref.h).
- */
+
+
+
+
+
+
 
 #pragma once
 
@@ -70,7 +70,6 @@
 
 #include "vector_ref.h"
 
-// CryptoPP defines byte in the global namespace, so must we.
 using byte = uint8_t;
 
 // Quote a given token stream to turn it into a string.
@@ -86,47 +85,6 @@ namespace dev
 using bytes = std::vector<byte>;
 using bytesRef = vector_ref<byte>;
 using bytesConstRef = vector_ref<byte const>;
-
-template <class T>
-class secure_vector
-{
-public:
-	secure_vector() {}
-	secure_vector(secure_vector<T> const& /*_c*/) = default;  // See https://github.com/elementrem/libweb3core/pull/44
-	explicit secure_vector(unsigned _size): m_data(_size) {}
-	explicit secure_vector(unsigned _size, T _item): m_data(_size, _item) {}
-	explicit secure_vector(std::vector<T> const& _c): m_data(_c) {}
-	explicit secure_vector(vector_ref<T> _c): m_data(_c.data(), _c.data() + _c.size()) {}
-	explicit secure_vector(vector_ref<const T> _c): m_data(_c.data(), _c.data() + _c.size()) {}
-	~secure_vector() { ref().cleanse(); }
-
-	secure_vector<T>& operator=(secure_vector<T> const& _c)
-	{
-		if (&_c == this)
-			return *this;
-
-		ref().cleanse();
-		m_data = _c.m_data;
-		return *this;
-	}
-	std::vector<T>& writable() { clear(); return m_data; }
-	std::vector<T> const& makeInsecure() const { return m_data; }
-
-	void clear() { ref().cleanse(); }
-
-	vector_ref<T> ref() { return vector_ref<T>(&m_data); }
-	vector_ref<T const> ref() const { return vector_ref<T const>(&m_data); }
-
-	size_t size() const { return m_data.size(); }
-	bool empty() const { return m_data.empty(); }
-
-	void swap(secure_vector<T>& io_other) { m_data.swap(io_other.m_data); }
-
-private:
-	std::vector<T> m_data;
-};
-
-using bytesSec = secure_vector<byte>;
 
 // Numeric types.
 using bigint = boost::multiprecision::number<boost::multiprecision::cpp_int_backend<>>;
@@ -175,6 +133,17 @@ inline u256 s2u(s256 _u)
 		return u256(_u);
     else
 		return u256(c_end + _u);
+}
+
+inline std::ostream& operator<<(std::ostream& os, bytes const& _bytes)
+{
+	std::ostringstream ss;
+	ss << std::hex;
+	std::copy(_bytes.begin(), _bytes.end(), std::ostream_iterator<int>(ss, ","));
+	std::string result = ss.str();
+	result.pop_back();
+	os << "[" + result + "]";
+	return os;
 }
 
 template <size_t n> inline u256 exp10()

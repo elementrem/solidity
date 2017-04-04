@@ -1,24 +1,24 @@
 /*
-	This file is part of cpp-elementrem.
+	This file is part of solidity.
 
-	cpp-elementrem is free software: you can redistribute it and/or modify
+	solidity is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
 	the Free Software Foundation, either version 3 of the License, or
 	(at your option) any later version.
 
-	cpp-elementrem is distributed in the hope that it will be useful,
+	solidity is distributed in the hope that it will be useful,
 	but WITHOUT ANY WARRANTY; without even the implied warranty of
 	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with cpp-elementrem.  If not, see <http://www.gnu.org/licenses/>.
+	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
-/**
- * 
- * @date 2016
- * Full-stack Solidity inline assember.
- */
+
+
+
+
+
 
 #pragma once
 
@@ -46,6 +46,10 @@ public:
 	/// Parse the given inline assembly chunk starting with `{` and ending with the corresponding `}`.
 	/// @return false or error.
 	bool parse(std::shared_ptr<Scanner> const& _scanner);
+	/// Converts the parser result back into a string form (not necessarily the same form
+	/// as the source form, but it should parse into the same parsed form again).
+	std::string toString();
+
 	ele::Assembly assemble();
 
 	/// Parse and assemble a string in one run - for use in Solidity code generation itself.

@@ -1,28 +1,28 @@
 /*
-	This file is part of cpp-elementrem.
+	This file is part of solidity.
 
-	cpp-elementrem is free software: you can redistribute it and/or modify
+	solidity is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
 	the Free Software Foundation, either version 3 of the License, or
 	(at your option) any later version.
 
-	cpp-elementrem is distributed in the hope that it will be useful,
+	solidity is distributed in the hope that it will be useful,
 	but WITHOUT ANY WARRANTY; without even the implied warranty of
 	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with cpp-elementrem.  If not, see <http://www.gnu.org/licenses/>.
+	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
-/**
- * 
- * 
- * Takes the parsed AST and produces the Natspec
- * documentation and the ABI interface
- * https://github.com/elementrem/wiki/wiki/Elementrem-Natural-Specification-Format
- *
- * Can generally deal with JSON files
- */
+
+
+
+
+
+
+
+
+
 
 #pragma once
 
@@ -37,6 +37,8 @@ namespace solidity
 
 // Forward declarations
 class ContractDefinition;
+class Type;
+using TypePointer = std::shared_ptr<Type const>;
 struct DocTag;
 enum class DocumentationType: uint8_t;
 
@@ -64,26 +66,34 @@ public:
 	/// @param _contractDef The contract definition
 	/// @param _type        The type of the documentation. Can be one of the
 	///                     types provided by @c DocumentationType
-	/// @return             A string with the json representation of provided type
-	static std::string documentation(
+	/// @return             A JSON representation of provided type
+	static Json::Value documentation(
 		ContractDefinition const& _contractDef,
 		DocumentationType _type
 	);
 	/// Get the ABI Interface of the contract
 	/// @param _contractDef The contract definition
-	/// @return             A string with the json representation of the contract's ABI Interface
-	static std::string abiInterface(ContractDefinition const& _contractDef);
+	/// @return             A JSONrepresentation of the contract's ABI Interface
+	static Json::Value abiInterface(ContractDefinition const& _contractDef);
 	/// Get the User documentation of the contract
 	/// @param _contractDef The contract definition
-	/// @return             A string with the json representation of the contract's user documentation
-	static std::string userDocumentation(ContractDefinition const& _contractDef);
+	/// @return             A JSON representation of the contract's user documentation
+	static Json::Value userDocumentation(ContractDefinition const& _contractDef);
 	/// Genereates the Developer's documentation of the contract
 	/// @param _contractDef The contract definition
-	/// @return             A string with the json representation
+	/// @return             A JSON representation
 	///                     of the contract's developer documentation
-	static std::string devDocumentation(ContractDefinition const& _contractDef);
+	static Json::Value devDocumentation(ContractDefinition const& _contractDef);
 
 private:
+	/// @returns a json value suitable for a list of types in function input or output
+	/// parameters or other places. If @a _forLibrary is true, complex types are referenced
+	/// by name, otherwise they are anonymously expanded.
+	static Json::Value formatTypeList(
+		std::vector<std::string> const& _names,
+		std::vector<TypePointer> const& _types,
+		bool _forLibrary
+	);
 	/// @returns concatenation of all content under the given tag name.
 	static std::string extractDoc(std::multimap<std::string, DocTag> const& _tags, std::string const& _name);
 };

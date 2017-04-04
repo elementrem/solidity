@@ -1,23 +1,23 @@
 /*
-	This file is part of cpp-elementrem.
+	This file is part of solidity.
 
-	cpp-elementrem is free software: you can redistribute it and/or modify
+	solidity is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
 	the Free Software Foundation, either version 3 of the License, or
 	(at your option) any later version.
 
-	cpp-elementrem is distributed in the hope that it will be useful,
+	solidity is distributed in the hope that it will be useful,
 	but WITHOUT ANY WARRANTY; without even the implied warranty of
 	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with cpp-elementrem.  If not, see <http://www.gnu.org/licenses/>.
+	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
-/** @file GasMeter.cpp
- * 
- * 
- */
+
+
+
+
 
 #pragma once
 
@@ -61,7 +61,7 @@ namespace GasCosts
 	static unsigned const callStipend = 2300;
 	static unsigned const callValueTransferGas = 9000;
 	static unsigned const callNewAccountGas = 25000;
-	static unsigned const suicideRefundGas = 24000;
+	static unsigned const selfdestructRefundGas = 24000;
 	static unsigned const memoryGas = 3;
 	static unsigned const quadCoeffDiv = 512;
 	static unsigned const createDataGas = 200;
@@ -102,7 +102,8 @@ public:
 
 	/// @returns an upper bound on the gas consumed by the given instruction and updates
 	/// the state.
-	GasConsumption estimateMax(AssemblyItem const& _item);
+	/// @param _inculdeExternalCosts if true, include costs caused by other contracts in calls.
+	GasConsumption estimateMax(AssemblyItem const& _item, bool _includeExternalCosts = true);
 
 	u256 const& largestMemoryAccess() const { return m_largestMemoryAccess; }
 

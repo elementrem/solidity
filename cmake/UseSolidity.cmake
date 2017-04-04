@@ -15,8 +15,7 @@ function(ele_apply TARGET REQUIRED SUBMODULE)
 	target_include_directories(${TARGET} PUBLIC ${Solidity_INCLUDE_DIRS})
 
 	if (${SUBMODULE} STREQUAL "solevmasm")
-		ele_use(${TARGET} ${REQUIRED} Jsoncpp)
-		target_link_libraries(${TARGET} ${Solidity_SOLEVMASM_LIBRARIES})
+		target_link_libraries(${TARGET} ${Solidity_SOLEVMASM_LIBRARIES} jsoncpp)
 	endif()
 
 	if (${SUBMODULE} STREQUAL "lll")

@@ -8,7 +8,7 @@ using namespace std;
 using namespace dev;
 using namespace dev::solidity;
 
-string InterfaceHandler::documentation(
+Json::Value InterfaceHandler::documentation(
 	ContractDefinition const& _contractDef,
 	DocumentationType _type
 )
@@ -24,26 +24,11 @@ string InterfaceHandler::documentation(
 	}
 
 	BOOST_THROW_EXCEPTION(InternalCompilerError() << errinfo_comment("Unknown documentation type"));
-	return "";
 }
 
-string InterfaceHandler::abiInterface(ContractDefinition const& _contractDef)
+Json::Value InterfaceHandler::abiInterface(ContractDefinition const& _contractDef)
 {
 	Json::Value abi(Json::arrayValue);
-
-	auto populateParameters = [](vector<string> const& _paramNames, vector<string> const& _paramTypes)
-	{
-		Json::Value params(Json::arrayValue);
-		solAssert(_paramNames.size() == _paramTypes.size(), "Names and types vector size does not match");
-		for (unsigned i = 0; i < _paramNames.size(); ++i)
-		{
-			Json::Value param;
-			param["name"] = _paramNames[i];
-			param["type"] = _paramTypes[i];
-			params.append(param);
-		}
-		return params;
-	};
 
 	for (auto it: _contractDef.interfaceFunctions())
 	{
@@ -53,13 +38,15 @@ string InterfaceHandler::abiInterface(ContractDefinition const& _contractDef)
 		method["name"] = it.second->declaration().name();
 		method["constant"] = it.second->isConstant();
 		method["payable"] = it.second->isPayable();
-		method["inputs"] = populateParameters(
+		method["inputs"] = formatTypeList(
 			externalFunctionType->parameterNames(),
-			externalFunctionType->parameterTypeNames(_contractDef.isLibrary())
+			externalFunctionType->parameterTypes(),
+			_contractDef.isLibrary()
 		);
-		method["outputs"] = populateParameters(
+		method["outputs"] = formatTypeList(
 			externalFunctionType->returnParameterNames(),
-			externalFunctionType->returnParameterTypeNames(_contractDef.isLibrary())
+			externalFunctionType->returnParameterTypes(),
+			_contractDef.isLibrary()
 		);
 		abi.append(method);
 	}
@@ -67,17 +54,19 @@ string InterfaceHandler::abiInterface(ContractDefinition const& _contractDef)
 	{
 		Json::Value method;
 		method["type"] = "constructor";
-		auto externalFunction = FunctionType(*_contractDef.constructor()).interfaceFunctionType();
+		auto externalFunction = FunctionType(*_contractDef.constructor(), false).interfaceFunctionType();
 		solAssert(!!externalFunction, "");
-		method["inputs"] = populateParameters(
+		method["payable"] = externalFunction->isPayable();
+		method["inputs"] = formatTypeList(
 			externalFunction->parameterNames(),
-			externalFunction->parameterTypeNames(_contractDef.isLibrary())
+			externalFunction->parameterTypes(),
+			_contractDef.isLibrary()
 		);
 		abi.append(method);
 	}
 	if (_contractDef.fallbackFunction())
 	{
-		auto externalFunctionType = FunctionType(*_contractDef.fallbackFunction()).interfaceFunctionType();
+		auto externalFunctionType = FunctionType(*_contractDef.fallbackFunction(), false).interfaceFunctionType();
 		solAssert(!!externalFunctionType, "");
 		Json::Value method;
 		method["type"] = "fallback";
@@ -103,10 +92,11 @@ string InterfaceHandler::abiInterface(ContractDefinition const& _contractDef)
 		event["inputs"] = params;
 		abi.append(event);
 	}
-	return Json::FastWriter().write(abi);
+
+	return abi;
 }
 
-string InterfaceHandler::userDocumentation(ContractDefinition const& _contractDef)
+Json::Value InterfaceHandler::userDocumentation(ContractDefinition const& _contractDef)
 {
 	Json::Value doc;
 	Json::Value methods(Json::objectValue);
@@ -126,10 +116,10 @@ string InterfaceHandler::userDocumentation(ContractDefinition const& _contractDe
 			}
 	doc["methods"] = methods;
 
-	return Json::StyledWriter().write(doc);
+	return doc;
 }
 
-string InterfaceHandler::devDocumentation(ContractDefinition const& _contractDef)
+Json::Value InterfaceHandler::devDocumentation(ContractDefinition const& _contractDef)
 {
 	Json::Value doc;
 	Json::Value methods(Json::objectValue);
@@ -175,7 +165,26 @@ string InterfaceHandler::devDocumentation(ContractDefinition const& _contractDef
 	}
 	doc["methods"] = methods;
 
-	return Json::StyledWriter().write(doc);
+	return doc;
+}
+
+Json::Value InterfaceHandler::formatTypeList(
+	vector<string> const& _names,
+	vector<TypePointer> const& _types,
+	bool _forLibrary
+)
+{
+	Json::Value params(Json::arrayValue);
+	solAssert(_names.size() == _types.size(), "Names and types vector size does not match");
+	for (unsigned i = 0; i < _names.size(); ++i)
+	{
+		solAssert(_types[i], "");
+		Json::Value param;
+		param["name"] = _names[i];
+		param["type"] = _types[i]->canonicalName(_forLibrary);
+		params.append(param);
+	}
+	return params;
 }
 
 string InterfaceHandler::extractDoc(multimap<string, DocTag> const& _tags, string const& _name)

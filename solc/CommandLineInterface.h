@@ -1,31 +1,33 @@
 /*
-	This file is part of cpp-elementrem.
+	This file is part of solidity.
 
-	cpp-elementrem is free software: you can redistribute it and/or modify
+	solidity is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
 	the Free Software Foundation, either version 3 of the License, or
 	(at your option) any later version.
 
-	cpp-elementrem is distributed in the hope that it will be useful,
+	solidity is distributed in the hope that it will be useful,
 	but WITHOUT ANY WARRANTY; without even the implied warranty of
 	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with cpp-elementrem.  If not, see <http://www.gnu.org/licenses/>.
+	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
-/**
- * 
- * 
- * Solidity command line interface.
- */
+
+
+
+
+
 #pragma once
 
-#include <memory>
-#include <boost/program_options.hpp>
-#include <boost/filesystem/path.hpp>
 #include <libsolidity/interface/CompilerStack.h>
 #include <libsolidity/inlineasm/AsmStack.h>
+
+#include <boost/program_options.hpp>
+#include <boost/filesystem/path.hpp>
+
+#include <memory>
 
 namespace dev
 {
@@ -45,7 +47,8 @@ public:
 	/// Parse the files and create source code objects
 	bool processInput();
 	/// Perform actions on the input depending on provided compiler arguments
-	void actOnInput();
+	/// @returns true on success.
+	bool actOnInput();
 
 private:
 	bool link();
@@ -63,6 +66,7 @@ private:
 	void handleOpcode(std::string const& _contract);
 	void handleBytecode(std::string const& _contract);
 	void handleSignatureHashes(std::string const& _contract);
+	void handleOnChainMetadata(std::string const& _contract);
 	void handleMeta(DocumentationType _type, std::string const& _contract);
 	void handleGasEstimation(std::string const& _contract);
 	void handleFormal();
@@ -77,6 +81,8 @@ private:
 	/// @arg _fileName the name of the file
 	/// @arg _data to be written
 	void createFile(std::string const& _fileName, std::string const& _data);
+
+	bool m_error = false; ///< If true, some error occurred.
 
 	bool m_onlyAssemble = false;
 	bool m_onlyLink = false;

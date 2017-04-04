@@ -1,25 +1,25 @@
 /*
-	This file is part of cpp-elementrem.
+	This file is part of solidity.
 
-	cpp-elementrem is free software: you can redistribute it and/or modify
+	solidity is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
 	the Free Software Foundation, either version 3 of the License, or
 	(at your option) any later version.
 
-	cpp-elementrem is distributed in the hope that it will be useful,
+	solidity is distributed in the hope that it will be useful,
 	but WITHOUT ANY WARRANTY; without even the implied warranty of
 	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with cpp-elementrem.  If not, see <http://www.gnu.org/licenses/>.
+	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
-/**
- * @file KnownState.cpp
- * 
- * 
- * Contains knowledge about the state of the virtual machine at a specific instruction.
- */
+
+
+
+
+
+
 
 #include "KnownState.h"
 #include <functional>
@@ -378,7 +378,7 @@ KnownState::Id KnownState::applySha3(
 		for (Id a: arguments)
 			data += toBigEndian(*m_expressionClasses->knownConstant(a));
 		data.resize(size_t(*l));
-		v = m_expressionClasses->find(AssemblyItem(u256(sha3(data)), _location));
+		v = m_expressionClasses->find(AssemblyItem(u256(dev::keccak256(data)), _location));
 	}
 	else
 		v = m_expressionClasses->find(sha3Item, {_start, _length}, true, m_sequenceNumber);

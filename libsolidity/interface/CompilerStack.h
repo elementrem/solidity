@@ -1,25 +1,25 @@
 /*
-	This file is part of cpp-elementrem.
+	This file is part of solidity.
 
-	cpp-elementrem is free software: you can redistribute it and/or modify
+	solidity is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
 	the Free Software Foundation, either version 3 of the License, or
 	(at your option) any later version.
 
-	cpp-elementrem is distributed in the hope that it will be useful,
+	solidity is distributed in the hope that it will be useful,
 	but WITHOUT ANY WARRANTY; without even the implied warranty of
 	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with cpp-elementrem.  If not, see <http://www.gnu.org/licenses/>.
+	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
-/**
- * 
- * 
- * 
- * Full-stack compiler that converts a source code string to bytecode.
- */
+
+
+
+
+
+
 
 #pragma once
 
@@ -29,6 +29,7 @@
 #include <vector>
 #include <functional>
 #include <boost/noncopyable.hpp>
+#include <boost/filesystem.hpp>
 #include <json/json.h>
 #include <libdevcore/Common.h>
 #include <libdevcore/FixedHash.h>
@@ -51,6 +52,7 @@ namespace solidity
 
 // forward declarations
 class Scanner;
+class ASTNode;
 class ContractDefinition;
 class FunctionDefinition;
 class SourceUnit;
@@ -58,6 +60,7 @@ class Compiler;
 class GlobalContext;
 class InterfaceHandler;
 class Error;
+class DeclarationContainer;
 
 enum class DocumentationType: uint8_t
 {
@@ -113,13 +116,14 @@ public:
 
 	/// Compiles the source units that were previously added and parsed.
 	/// @returns false on error.
-	bool compile(bool _optimize = false, unsigned _runs = 200);
+	bool compile(
+		bool _optimize = false,
+		unsigned _runs = 200,
+		std::map<std::string, h160> const& _libraries = std::map<std::string, h160>{}
+	);
 	/// Parses and compiles the given source code.
 	/// @returns false on error.
-	bool compile(std::string const& _sourceCode, bool _optimize = false);
-
-	/// Inserts the given addresses into the linker objects of all compiled contracts.
-	void link(std::map<std::string, h160> const& _libraries);
+	bool compile(std::string const& _sourceCode, bool _optimize = false, unsigned _runs = 200);
 
 	/// Tries to translate all source files into a language suitable for formal analysis.
 	/// @param _errors list to store errors - defaults to the internal error list.
@@ -146,6 +150,10 @@ public:
 	/// @returns the string that provides a mapping between runtime bytecode and sourcecode.
 	/// if the contract does not (yet) have bytecode.
 	std::string const* runtimeSourceMapping(std::string const& _contractName = "") const;
+
+	/// @returns either the contract's name or a mixture of its name and source file, sanitized for filesystem use
+	std::string const filesystemFriendlyName(std::string const& _contractName) const;
+
 	/// @returns hash of the runtime bytecode for the contract, i.e. the code that is
 	/// returned by the constructor or the zero-h256 if the contract still needs to be linked or
 	/// does not have runtime code.
@@ -162,14 +170,16 @@ public:
 	/// @returns a mapping assigning each source name its index inside the vector returned
 	/// by sourceNames().
 	std::map<std::string, unsigned> sourceIndices() const;
-	/// @returns a string representing the contract interface in JSON.
+	/// @returns a JSON representing the contract interface.
 	/// Prerequisite: Successful call to parse or compile.
-	std::string const& interface(std::string const& _contractName = "") const;
-	/// @returns a string representing the contract's documentation in JSON.
+	Json::Value const& interface(std::string const& _contractName = "") const;
+	/// @returns a JSON representing the contract's documentation.
 	/// Prerequisite: Successful call to parse or compile.
 	/// @param type The type of the documentation to get.
 	/// Can be one of 4 types defined at @c DocumentationType
-	std::string const& metadata(std::string const& _contractName, DocumentationType _type) const;
+	Json::Value const& metadata(std::string const& _contractName, DocumentationType _type) const;
+	std::string const& onChainMetadata(std::string const& _contractName) const;
+	void useMetadataLiteralSources(bool _metadataLiteralSources) { m_metadataLiteralSources = _metadataLiteralSources; }
 
 	/// @returns the previously used scanner, useful for counting lines during error reporting.
 	Scanner const& scanner(std::string const& _sourceName = "") const;
@@ -213,9 +223,10 @@ private:
 		ele::LinkerObject object;
 		ele::LinkerObject runtimeObject;
 		ele::LinkerObject cloneObject;
-		mutable std::unique_ptr<std::string const> interface;
-		mutable std::unique_ptr<std::string const> userDocumentation;
-		mutable std::unique_ptr<std::string const> devDocumentation;
+		std::string onChainMetadata; ///< The metadata json that will be hashed into the chain.
+		mutable std::unique_ptr<Json::Value const> interface;
+		mutable std::unique_ptr<Json::Value const> userDocumentation;
+		mutable std::unique_ptr<Json::Value const> devDocumentation;
 		mutable std::unique_ptr<std::string const> sourceMapping;
 		mutable std::unique_ptr<std::string const> runtimeSourceMapping;
 	};
@@ -226,23 +237,24 @@ private:
 	StringMap loadMissingSources(SourceUnit const& _ast, std::string const& _path);
 	std::string applyRemapping(std::string const& _path, std::string const& _context);
 	void resolveImports();
-	/// Checks whether there are libraries with the same name, reports that as an error and
-	/// @returns false in this case.
-	bool checkLibraryNameClashes();
 	/// @returns the absolute path corresponding to @a _path relative to @a _reference.
 	std::string absolutePath(std::string const& _path, std::string const& _reference) const;
+	/// Helper function to return path converted strings.
+	std::string sanitizePath(std::string const& _path) const { return boost::filesystem::path(_path).generic_string(); }
+
 	/// Compile a single contract and put the result in @a _compiledContracts.
 	void compileContract(
-		bool _optimize,
-		unsigned _runs,
 		ContractDefinition const& _contract,
 		std::map<ContractDefinition const*, ele::Assembly const*>& _compiledContracts
 	);
+	void link();
 
 	Contract const& contract(std::string const& _contractName = "") const;
 	Source const& source(std::string const& _sourceName = "") const;
 
+	std::string createOnChainMetadata(Contract const& _contract) const;
 	std::string computeSourceMapping(ele::AssemblyItems const& _items) const;
+	Json::Value const& metadata(Contract const&, DocumentationType _type) const;
 
 	struct Remapping
 	{
@@ -252,16 +264,21 @@ private:
 	};
 
 	ReadFileCallback m_readFile;
+	bool m_optimize = false;
+	unsigned m_optimizeRuns = 200;
+	std::map<std::string, h160> m_libraries;
 	/// list of path prefix remappings, e.g. mylibrary: github.com/elementrem = /usr/local/elementrem
 	/// "context:prefix=target"
 	std::vector<Remapping> m_remappings;
 	bool m_parseSuccessful;
 	std::map<std::string const, Source> m_sources;
 	std::shared_ptr<GlobalContext> m_globalContext;
+	std::map<ASTNode const*, std::shared_ptr<DeclarationContainer>> m_scopes;
 	std::vector<Source const*> m_sourceOrder;
 	std::map<std::string const, Contract> m_contracts;
 	std::string m_formalTranslation;
 	ErrorList m_errors;
+	bool m_metadataLiteralSources = false;
 };
 
 }

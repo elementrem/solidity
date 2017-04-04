@@ -1,24 +1,24 @@
 /*
-	This file is part of cpp-elementrem.
+	This file is part of solidity.
 
-	cpp-elementrem is free software: you can redistribute it and/or modify
+	solidity is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
 	the Free Software Foundation, either version 3 of the License, or
 	(at your option) any later version.
 
-	cpp-elementrem is distributed in the hope that it will be useful,
+	solidity is distributed in the hope that it will be useful,
 	but WITHOUT ANY WARRANTY; without even the implied warranty of
 	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with cpp-elementrem.  If not, see <http://www.gnu.org/licenses/>.
+	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
-/**
- * 
- * 
- * Solidity compiler.
- */
+
+
+
+
+
 
 #include <libsolidity/codegen/ContractCompiler.h>
 #include <algorithm>
@@ -42,7 +42,7 @@ class StackHeightChecker
 public:
 	StackHeightChecker(CompilerContext const& _context):
 		m_context(_context), stackHeight(m_context.stackHeight()) {}
-	void check() { solAssert(m_context.stackHeight() == stackHeight, "I sense a disturbance in the stack."); }
+	void check() { solAssert(m_context.stackHeight() == stackHeight, std::string("I sense a disturbance in the stack: ") + std::to_string(m_context.stackHeight()) + " vs " + std::to_string(stackHeight)); }
 private:
 	CompilerContext const& m_context;
 	unsigned stackHeight;
@@ -60,14 +60,13 @@ void ContractCompiler::compileContract(
 }
 
 size_t ContractCompiler::compileConstructor(
-	CompilerContext const& _runtimeContext,
 	ContractDefinition const& _contract,
 	std::map<const ContractDefinition*, ele::Assembly const*> const& _contracts
 )
 {
 	CompilerContext::LocationSetter locationSetter(m_context, _contract);
 	initializeContext(_contract, _contracts);
-	return packIntoContractCreator(_contract, _runtimeContext);
+	return packIntoContractCreator(_contract);
 }
 
 size_t ContractCompiler::compileClone(
@@ -80,7 +79,7 @@ size_t ContractCompiler::compileClone(
 	appendInitAndConstructorCode(_contract);
 
 	//@todo determine largest return size of all runtime functions
-	ele::AssemblyItem runtimeSub = m_context.addSubroutine(cloneRuntime());
+	auto runtimeSub = m_context.addSubroutine(cloneRuntime());
 
 	// stack contains sub size
 	m_context << Instruction::DUP1 << runtimeSub << u256(0) << Instruction::CODECOPY;
@@ -88,7 +87,6 @@ size_t ContractCompiler::compileClone(
 
 	appendMissingFunctions();
 
-	solAssert(runtimeSub.data() < numeric_limits<size_t>::max(), "");
 	return size_t(runtimeSub.data());
 }
 
@@ -102,6 +100,13 @@ void ContractCompiler::initializeContext(
 	CompilerUtils(m_context).initialiseFreeMemoryPointer();
 	registerStateVariables(_contract);
 	m_context.resetVisitedNodes(&_contract);
+}
+
+void ContractCompiler::appendCallValueCheck()
+{
+	// Throw if function is not payable but call contained element.
+	m_context << Instruction::CALLVALUE;
+	m_context.appendConditionalInvalid();
 }
 
 void ContractCompiler::appendInitAndConstructorCode(ContractDefinition const& _contract)
@@ -139,23 +144,35 @@ void ContractCompiler::appendInitAndConstructorCode(ContractDefinition const& _c
 		appendConstructor(*constructor);
 	else if (auto c = m_context.nextConstructor(_contract))
 		appendBaseConstructor(*c);
+	else
+		appendCallValueCheck();
 }
 
-size_t ContractCompiler::packIntoContractCreator(ContractDefinition const& _contract, CompilerContext const& _runtimeContext)
+size_t ContractCompiler::packIntoContractCreator(ContractDefinition const& _contract)
 {
+	solAssert(!!m_runtimeCompiler, "");
+
 	appendInitAndConstructorCode(_contract);
 
-	ele::AssemblyItem runtimeSub = m_context.addSubroutine(_runtimeContext.assembly());
+	// We jump to the deploy routine because we first have to append all missing functions,
+	// which can cause further functions to be added to the runtime context.
+	ele::AssemblyItem deployRoutine = m_context.appendJumpToNew();
 
-	// stack contains sub size
-	m_context << Instruction::DUP1 << runtimeSub << u256(0) << Instruction::CODECOPY;
+	// We have to include copies of functions in the construction time and runtime context
+	// because of absolute jumps.
+	appendMissingFunctions();
+	m_runtimeCompiler->appendMissingFunctions();
+
+	m_context << deployRoutine;
+
+	solAssert(m_context.runtimeSub() != size_t(-1), "Runtime sub not registered");
+	m_context.pushSubroutineSize(m_context.runtimeSub());
+	m_context << Instruction::DUP1;
+	m_context.pushSubroutineOffset(m_context.runtimeSub());
+	m_context << u256(0) << Instruction::CODECOPY;
 	m_context << u256(0) << Instruction::RETURN;
 
-	// note that we have to include the functions again because of absolute jump labels
-	appendMissingFunctions();
-
-	solAssert(runtimeSub.data() < numeric_limits<size_t>::max(), "");
-	return size_t(runtimeSub.data());
+	return m_context.runtimeSub();
 }
 
 void ContractCompiler::appendBaseConstructor(FunctionDefinition const& _constructor)
@@ -176,6 +193,9 @@ void ContractCompiler::appendBaseConstructor(FunctionDefinition const& _construc
 void ContractCompiler::appendConstructor(FunctionDefinition const& _constructor)
 {
 	CompilerContext::LocationSetter locationSetter(m_context, _constructor);
+	if (!_constructor.isPayable())
+		appendCallValueCheck();
+
 	// copy constructor arguments from code to memory and then to stack, they are supplied after the actual program
 	if (!_constructor.parameters().empty())
 	{
@@ -243,18 +263,15 @@ void ContractCompiler::appendFunctionSelector(ContractDefinition const& _contrac
 	if (fallback)
 	{
 		if (!fallback->isPayable())
-		{
-			// Throw if function is not payable but call contained element.
-			m_context << Instruction::CALLVALUE;
-			m_context.appendConditionalJumpTo(m_context.errorTag());
-		}
+			appendCallValueCheck();
+
 		ele::AssemblyItem returnTag = m_context.pushNewTag();
 		fallback->accept(*this);
 		m_context << returnTag;
 		appendReturnValuePacker(FunctionType(*fallback).returnParameterTypes(), _contract.isLibrary());
 	}
 	else
-		m_context.appendJumpTo(m_context.errorTag());
+		m_context.appendInvalid();
 
 	for (auto const& it: interfaceFunctions)
 	{
@@ -266,11 +283,7 @@ void ContractCompiler::appendFunctionSelector(ContractDefinition const& _contrac
 		// We have to allow this for libraries, because value of the previous
 		// call is still visible in the delegatecall.
 		if (!functionType->isPayable() && !_contract.isLibrary())
-		{
-			// Throw if function is not payable but call contained element.
-			m_context << Instruction::CALLVALUE;
-			m_context.appendConditionalJumpTo(m_context.errorTag());
-		}
+			appendCallValueCheck();
 
 		ele::AssemblyItem returnTag = m_context.pushNewTag();
 		m_context << CompilerUtils::dataStartOffset;
@@ -293,13 +306,14 @@ void ContractCompiler::appendCalldataUnpacker(TypePointers const& _typeParameter
 	{
 		// stack: v1 v2 ... v(k-1) base_offset current_offset
 		TypePointer type = parameterType->decodingType();
+		solAssert(type, "No decoding type found.");
 		if (type->category() == Type::Category::Array)
 		{
 			auto const& arrayType = dynamic_cast<ArrayType const&>(*type);
-			solAssert(!arrayType.baseType()->isDynamicallySized(), "Nested arrays not yet implemented.");
+			solUnimplementedAssert(!arrayType.baseType()->isDynamicallySized(), "Nested arrays not yet implemented.");
 			if (_fromMemory)
 			{
-				solAssert(
+				solUnimplementedAssert(
 					arrayType.baseType()->isValueType(),
 					"Nested memory arrays not yet implemented here."
 				);
@@ -472,7 +486,12 @@ bool ContractCompiler::visit(FunctionDefinition const& _function)
 		stackLayout.push_back(i);
 	stackLayout += vector<int>(c_localVariablesSize, -1);
 
-	solAssert(stackLayout.size() <= 17, "Stack too deep, try removing local variables.");
+	if (stackLayout.size() > 17)
+		BOOST_THROW_EXCEPTION(
+			CompilerError() <<
+			errinfo_sourceLocation(_function.location()) <<
+			errinfo_comment("Stack too deep, try removing local variables.")
+		);
 	while (stackLayout.back() != int(stackLayout.size() - 1))
 		if (stackLayout.back() < 0)
 		{
@@ -515,7 +534,19 @@ bool ContractCompiler::visit(InlineAssembly const& _inlineAssembly)
 			{
 				solAssert(!!decl->type(), "Type of declaration required but not yet determined.");
 				if (FunctionDefinition const* functionDef = dynamic_cast<FunctionDefinition const*>(decl))
-					_assembly.append(m_context.virtualFunctionEntryLabel(*functionDef).pushTag());
+				{
+					functionDef = &m_context.resolveVirtualFunction(*functionDef);
+					_assembly.append(m_context.functionEntryLabel(*functionDef).pushTag());
+					// If there is a runtime context, we have to merge both labels into the same
+					// stack slot in case we store it in storage.
+					if (CompilerContext* rtc = m_context.runtimeContext())
+					{
+						_assembly.append(u256(1) << 32);
+						_assembly.append(Instruction::MUL);
+						_assembly.append(rtc->functionEntryLabel(*functionDef).toSubAssemblyTag(m_context.runtimeSub()));
+						_assembly.append(Instruction::OR);
+					}
+				}
 				else if (auto variable = dynamic_cast<VariableDeclaration const*>(decl))
 				{
 					solAssert(!variable->isConstant(), "");
@@ -525,6 +556,7 @@ bool ContractCompiler::visit(InlineAssembly const& _inlineAssembly)
 						if (stackDiff < 1 || stackDiff > 16)
 							BOOST_THROW_EXCEPTION(
 								CompilerError() <<
+								errinfo_sourceLocation(_inlineAssembly.location()) <<
 								errinfo_comment("Stack too deep, try removing local variables.")
 							);
 						for (unsigned i = 0; i < variable->type()->sizeOnStack(); ++i)
@@ -549,7 +581,7 @@ bool ContractCompiler::visit(InlineAssembly const& _inlineAssembly)
 				else if (auto contract = dynamic_cast<ContractDefinition const*>(decl))
 				{
 					solAssert(contract->isLibrary(), "");
-					_assembly.appendLibraryAddress(contract->name());
+					_assembly.appendLibraryAddress(contract->fullyQualifiedName());
 				}
 				else
 					solAssert(false, "Invalid declaration type.");
@@ -557,7 +589,7 @@ bool ContractCompiler::visit(InlineAssembly const& _inlineAssembly)
 				// lvalue context
 				auto variable = dynamic_cast<VariableDeclaration const*>(decl);
 				solAssert(
-					!!variable || !m_context.isLocalVariable(variable),
+					!!variable && m_context.isLocalVariable(variable),
 					"Can only assign to stack variables in inline assembly."
 				);
 				unsigned size = variable->type()->sizeOnStack();
@@ -565,6 +597,7 @@ bool ContractCompiler::visit(InlineAssembly const& _inlineAssembly)
 				if (stackDiff > 16 || stackDiff < 1)
 					BOOST_THROW_EXCEPTION(
 						CompilerError() <<
+						errinfo_sourceLocation(_inlineAssembly.location()) <<
 						errinfo_comment("Stack too deep, try removing local variables.")
 					);
 				for (unsigned i = 0; i < size; ++i) {
@@ -575,7 +608,7 @@ bool ContractCompiler::visit(InlineAssembly const& _inlineAssembly)
 			return true;
 		}
 	);
-	solAssert(errors.empty(), "Code generation for inline assembly with errors requested.");
+	solAssert(Error::containsOnlyWarnings(errors), "Code generation for inline assembly with errors requested.");
 	m_context.setStackOffset(startStackHeight);
 	return false;
 }
@@ -611,11 +644,24 @@ bool ContractCompiler::visit(WhileStatement const& _whileStatement)
 	m_breakTags.push_back(loopEnd);
 
 	m_context << loopStart;
-	compileExpression(_whileStatement.condition());
-	m_context << Instruction::ISZERO;
-	m_context.appendConditionalJumpTo(loopEnd);
+
+	// While loops have the condition prepended
+	if (!_whileStatement.isDoWhile())
+	{
+		compileExpression(_whileStatement.condition());
+		m_context << Instruction::ISZERO;
+		m_context.appendConditionalJumpTo(loopEnd);
+	}
 
 	_whileStatement.body().accept(*this);
+
+	// Do-while loops have the condition appended
+	if (_whileStatement.isDoWhile())
+	{
+		compileExpression(_whileStatement.condition());
+		m_context << Instruction::ISZERO;
+		m_context.appendConditionalJumpTo(loopEnd);
+	}
 
 	m_context.appendJumpTo(loopStart);
 	m_context << loopEnd;
@@ -716,7 +762,9 @@ bool ContractCompiler::visit(Return const& _return)
 bool ContractCompiler::visit(Throw const& _throw)
 {
 	CompilerContext::LocationSetter locationSetter(m_context, _throw);
-	m_context.appendJumpTo(m_context.errorTag());
+	// Do not send back an error detail.
+	m_context << u256(0) << u256(0);
+	m_context << Instruction::REVERT;
 	return false;
 }
 
@@ -781,6 +829,7 @@ void ContractCompiler::appendMissingFunctions()
 		function->accept(*this);
 		solAssert(m_context.nextFunctionToCompile() != function, "Compiled the wrong function?");
 	}
+	m_context.appendMissingLowLevelFunctions();
 }
 
 void ContractCompiler::appendModifierOrFunctionCode()
@@ -823,8 +872,6 @@ void ContractCompiler::appendModifierOrFunctionCode()
 				CompilerUtils::sizeOnStack(modifier.parameters()) +
 				CompilerUtils::sizeOnStack(modifier.localVariables());
 			codeBlock = &modifier.body();
-
-			codeBlock = &modifier.body();
 		}
 	}
 
@@ -858,7 +905,7 @@ void ContractCompiler::compileExpression(Expression const& _expression, TypePoin
 		CompilerUtils(m_context).convertType(*_expression.annotation().type, *_targetType);
 }
 
-ele::Assembly ContractCompiler::cloneRuntime()
+ele::AssemblyPointer ContractCompiler::cloneRuntime()
 {
 	ele::Assembly a;
 	a << Instruction::CALLDATASIZE;
@@ -873,8 +920,10 @@ ele::Assembly ContractCompiler::cloneRuntime()
 	a << Instruction::DELEGATECALL;
 	//Propagate error condition (if DELEGATECALL pushes 0 on stack).
 	a << Instruction::ISZERO;
-	a.appendJumpI(a.errorTag());
+	a << Instruction::ISZERO;
+	ele::AssemblyItem afterTag = a.appendJumpI().tag();
+	a << Instruction::INVALID << afterTag;
 	//@todo adjust for larger return values, make this dynamic.
 	a << u256(0x20) << u256(0) << Instruction::RETURN;
-	return a;
+	return make_shared<ele::Assembly>(a);
 }

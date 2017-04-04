@@ -1,24 +1,23 @@
 /*
-    This file is part of cpp-elementrem.
+    This file is part of solidity.
 
-    cpp-elementrem is free software: you can redistribute it and/or modify
+    solidity is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
-    cpp-elementrem is distributed in the hope that it will be useful,
+    solidity is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with cpp-elementrem.  If not, see <http://www.gnu.org/licenses/>.
+    along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
-/**
- * 
- * 
- * Solidity abstract syntax tree.
- */
+
+
+
+
 
 #pragma once
 
@@ -35,6 +34,7 @@
 #include <libsolidity/ast/Types.h>
 #include <libsolidity/interface/Exceptions.h>
 #include <libsolidity/ast/ASTAnnotations.h>
+#include <json/json.h>
 
 namespace dev
 {
@@ -55,6 +55,11 @@ class ASTNode: private boost::noncopyable
 public:
 	explicit ASTNode(SourceLocation const& _location);
 	virtual ~ASTNode();
+
+	/// @returns an identifier of this AST node that is unique for a single compilation run.
+	size_t id() const { return m_id; }
+	/// Resets the global ID counter. This invalidates all previous IDs.
+	static void resetID();
 
 	virtual void accept(ASTVisitor& _visitor) = 0;
 	virtual void accept(ASTConstVisitor& _visitor) const = 0;
@@ -93,6 +98,7 @@ public:
 	///@}
 
 protected:
+	size_t const m_id = 0;
 	/// Annotation - is specialised in derived classes, is created upon request (because of polymorphism).
 	mutable ASTAnnotation* m_annotation = nullptr;
 
@@ -157,6 +163,11 @@ public:
 	ASTNode const* scope() const { return m_scope; }
 	void setScope(ASTNode const* _scope) { m_scope = _scope; }
 
+	/// @returns the source name this declaration is present in.
+	/// Can be combined with annotation().canonicalName to form a globally unique name.
+	std::string sourceUnitName() const;
+	std::string fullyQualifiedName() const { return sourceUnitName() + ":" + name(); }
+
 	virtual bool isLValue() const { return false; }
 	virtual bool isPartOfExternalInterface() const { return false; }
 
@@ -165,6 +176,10 @@ public:
 	/// contract types.
 	/// This can only be called once types of variable declarations have already been resolved.
 	virtual TypePointer type() const = 0;
+
+	/// @param _internal false indicates external interface is concerned, true indicates internal interface is concerned.
+	/// @returns null when it is not accessible as a function.
+	virtual std::shared_ptr<FunctionType> functionType(bool /*_internal*/) const { return {}; }
 
 protected:
 	virtual Visibility defaultVisibility() const { return Visibility::Public; }
@@ -340,14 +355,16 @@ public:
 
 	/// Returns the constructor or nullptr if no constructor was specified.
 	FunctionDefinition const* constructor() const;
+	/// @returns true iff the constructor of this contract is public (or non-existing).
+	bool constructorIsPublic() const;
 	/// Returns the fallback function or nullptr if no fallback function was specified.
 	FunctionDefinition const* fallbackFunction() const;
 
-	std::string const& userDocumentation() const;
-	void setUserDocumentation(std::string const& _userDocumentation);
+	Json::Value const& userDocumentation() const;
+	void setUserDocumentation(Json::Value const& _userDocumentation);
 
-	std::string const& devDocumentation() const;
-	void setDevDocumentation(std::string const& _devDocumentation);
+	Json::Value const& devDocumentation() const;
+	void setDevDocumentation(Json::Value const& _devDocumentation);
 
 	virtual TypePointer type() const override;
 
@@ -359,8 +376,8 @@ private:
 	bool m_isLibrary;
 
 	// parsed Natspec documentation of the contract.
-	std::string m_userDocumentation;
-	std::string m_devDocumentation;
+	Json::Value m_userDocumentation;
+	Json::Value m_devDocumentation;
 
 	std::vector<ContractDefinition const*> m_linearizedBaseContracts;
 	mutable std::unique_ptr<std::vector<std::pair<FixedHash<4>, FunctionTypePointer>>> m_interfaceFunctionList;
@@ -576,6 +593,10 @@ public:
 
 	virtual TypePointer type() const override;
 
+	/// @param _internal false indicates external interface is concerned, true indicates internal interface is concerned.
+	/// @returns null when it is not accessible as a function.
+	virtual std::shared_ptr<FunctionType> functionType(bool /*_internal*/) const override;
+
 	virtual FunctionDefinitionAnnotation& annotation() const override;
 
 private:
@@ -588,7 +609,7 @@ private:
 
 /**
  * Declaration of a variable. This can be used in various places, e.g. in function parameter
- * lists, struct definitions and even function bodys.
+ * lists, struct definitions and even function bodies.
  */
 class VariableDeclaration: public Declaration
 {
@@ -623,7 +644,7 @@ public:
 	virtual bool isLValue() const override;
 	virtual bool isPartOfExternalInterface() const override { return isPublic(); }
 
-	bool isLocalVariable() const { return !!dynamic_cast<FunctionDefinition const*>(scope()); }
+	bool isLocalVariable() const { return !!dynamic_cast<CallableDeclaration const*>(scope()); }
 	/// @returns true if this variable is a parameter or return parameter of a function.
 	bool isCallableParameter() const;
 	/// @returns true if this variable is a parameter (not return parameter) of an external function.
@@ -637,6 +658,10 @@ public:
 	Location referenceLocation() const { return m_location; }
 
 	virtual TypePointer type() const override;
+
+	/// @param _internal false indicates external interface is concerned, true indicates internal interface is concerned.
+	/// @returns null when it is not accessible as a function.
+	virtual std::shared_ptr<FunctionType> functionType(bool /*_internal*/) const override;
 
 	virtual VariableDeclarationAnnotation& annotation() const override;
 
@@ -735,6 +760,7 @@ public:
 	bool isAnonymous() const { return m_anonymous; }
 
 	virtual TypePointer type() const override;
+	virtual std::shared_ptr<FunctionType> functionType(bool /*_internal*/) const override;
 
 	virtual EventDefinitionAnnotation& annotation() const override;
 
@@ -819,6 +845,44 @@ public:
 
 private:
 	std::vector<ASTString> m_namePath;
+};
+
+/**
+ * A literal function type. Its source form is "function (paramType1, paramType2) internal / external returns (retType1, retType2)"
+ */
+class FunctionTypeName: public TypeName
+{
+public:
+	FunctionTypeName(
+		SourceLocation const& _location,
+		ASTPointer<ParameterList> const& _parameterTypes,
+		ASTPointer<ParameterList> const& _returnTypes,
+		Declaration::Visibility _visibility,
+		bool _isDeclaredConst,
+		bool _isPayable
+	):
+		TypeName(_location), m_parameterTypes(_parameterTypes), m_returnTypes(_returnTypes),
+		m_visibility(_visibility), m_isDeclaredConst(_isDeclaredConst), m_isPayable(_isPayable)
+	{}
+	virtual void accept(ASTVisitor& _visitor) override;
+	virtual void accept(ASTConstVisitor& _visitor) const override;
+
+	std::vector<ASTPointer<VariableDeclaration>> const& parameterTypes() const { return m_parameterTypes->parameters(); }
+	std::vector<ASTPointer<VariableDeclaration>> const& returnParameterTypes() const { return m_returnTypes->parameters(); }
+
+	Declaration::Visibility visibility() const
+	{
+		return m_visibility == Declaration::Visibility::Default ? Declaration::Visibility::Internal : m_visibility;
+	}
+	bool isDeclaredConst() const { return m_isDeclaredConst; }
+	bool isPayable() const { return m_isPayable; }
+
+private:
+	ASTPointer<ParameterList> m_parameterTypes;
+	ASTPointer<ParameterList> m_returnTypes;
+	Declaration::Visibility m_visibility;
+	bool m_isDeclaredConst;
+	bool m_isPayable;
 };
 
 /**
@@ -1005,18 +1069,22 @@ public:
 		SourceLocation const& _location,
 		ASTPointer<ASTString> const& _docString,
 		ASTPointer<Expression> const& _condition,
-		ASTPointer<Statement> const& _body
+		ASTPointer<Statement> const& _body,
+		bool _isDoWhile
 	):
-		BreakableStatement(_location, _docString), m_condition(_condition), m_body(_body) {}
+		BreakableStatement(_location, _docString), m_condition(_condition), m_body(_body),
+		m_isDoWhile(_isDoWhile) {}
 	virtual void accept(ASTVisitor& _visitor) override;
 	virtual void accept(ASTConstVisitor& _visitor) const override;
 
 	Expression const& condition() const { return *m_condition; }
 	Statement const& body() const { return *m_body; }
+	bool isDoWhile() const { return m_isDoWhile; }
 
 private:
 	ASTPointer<Expression> m_condition;
 	ASTPointer<Statement> m_body;
+	bool m_isDoWhile;
 };
 
 /**
@@ -1516,6 +1584,11 @@ public:
 	ASTString const& value() const { return *m_value; }
 
 	SubDenomination subDenomination() const { return m_subDenomination; }
+
+	/// @returns true if this looks like a checksummed address.
+	bool looksLikeAddress() const;
+	/// @returns true if it passes the address checksum test.
+	bool passesAddressChecksum() const;
 
 private:
 	Token::Value m_token;

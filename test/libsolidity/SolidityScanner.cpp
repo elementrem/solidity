@@ -1,24 +1,24 @@
 /*
-    This file is part of cpp-elementrem.
+    This file is part of solidity.
 
-    cpp-elementrem is free software: you can redistribute it and/or modify
+    solidity is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
-    cpp-elementrem is distributed in the hope that it will be useful,
+    solidity is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with cpp-elementrem.  If not, see <http://www.gnu.org/licenses/>.
+    along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
-/**
- * 
- * 
- * Unit tests for the solidity scanner.
- */
+
+
+
+
+
 
 #include <libsolidity/parsing/Scanner.h>
 #include <boost/test/unit_test.hpp>
@@ -97,9 +97,39 @@ BOOST_AUTO_TEST_CASE(hex_numbers)
 	BOOST_CHECK_EQUAL(scanner.next(), Token::EOS);
 }
 
+BOOST_AUTO_TEST_CASE(octal_numbers)
+{
+	Scanner scanner(CharStream("07"));
+	BOOST_CHECK_EQUAL(scanner.currentToken(), Token::Illegal);
+	scanner.reset(CharStream("007"), "");
+	BOOST_CHECK_EQUAL(scanner.currentToken(), Token::Illegal);
+	scanner.reset(CharStream("-07"), "");
+	BOOST_CHECK_EQUAL(scanner.currentToken(), Token::Sub);
+	BOOST_CHECK_EQUAL(scanner.next(), Token::Illegal);
+	scanner.reset(CharStream("-.07"), "");
+	BOOST_CHECK_EQUAL(scanner.currentToken(), Token::Sub);
+	BOOST_CHECK_EQUAL(scanner.next(), Token::Number);
+	scanner.reset(CharStream("0"), "");
+	BOOST_CHECK_EQUAL(scanner.currentToken(), Token::Number);
+	scanner.reset(CharStream("0.1"), "");
+	BOOST_CHECK_EQUAL(scanner.currentToken(), Token::Number);
+}
+
+BOOST_AUTO_TEST_CASE(scientific_notation)
+{
+	Scanner scanner(CharStream("var x = 2e10;"));
+	BOOST_CHECK_EQUAL(scanner.currentToken(), Token::Var);
+	BOOST_CHECK_EQUAL(scanner.next(), Token::Identifier);
+	BOOST_CHECK_EQUAL(scanner.next(), Token::Assign);
+	BOOST_CHECK_EQUAL(scanner.next(), Token::Number);
+	BOOST_CHECK_EQUAL(scanner.currentLiteral(), "2e10");
+	BOOST_CHECK_EQUAL(scanner.next(), Token::Semicolon);
+	BOOST_CHECK_EQUAL(scanner.next(), Token::EOS);
+}
+
 BOOST_AUTO_TEST_CASE(negative_numbers)
 {
-	Scanner scanner(CharStream("var x = -.2 + -0x78 + -7.3 + 8.9;"));
+	Scanner scanner(CharStream("var x = -.2 + -0x78 + -7.3 + 8.9 + 2e-2;"));
 	BOOST_CHECK_EQUAL(scanner.currentToken(), Token::Var);
 	BOOST_CHECK_EQUAL(scanner.next(), Token::Identifier);
 	BOOST_CHECK_EQUAL(scanner.next(), Token::Assign);
@@ -117,6 +147,9 @@ BOOST_AUTO_TEST_CASE(negative_numbers)
 	BOOST_CHECK_EQUAL(scanner.next(), Token::Add);
 	BOOST_CHECK_EQUAL(scanner.next(), Token::Number);
 	BOOST_CHECK_EQUAL(scanner.currentLiteral(), "8.9");
+	BOOST_CHECK_EQUAL(scanner.next(), Token::Add);
+	BOOST_CHECK_EQUAL(scanner.next(), Token::Number);
+	BOOST_CHECK_EQUAL(scanner.currentLiteral(), "2e-2");
 	BOOST_CHECK_EQUAL(scanner.next(), Token::Semicolon);
 	BOOST_CHECK_EQUAL(scanner.next(), Token::EOS);
 }

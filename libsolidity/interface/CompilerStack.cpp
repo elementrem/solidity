@@ -1,28 +1,31 @@
 /*
-	This file is part of cpp-elementrem.
+	This file is part of solidity.
 
-	cpp-elementrem is free software: you can redistribute it and/or modify
+	solidity is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
 	the Free Software Foundation, either version 3 of the License, or
 	(at your option) any later version.
 
-	cpp-elementrem is distributed in the hope that it will be useful,
+	solidity is distributed in the hope that it will be useful,
 	but WITHOUT ANY WARRANTY; without even the implied warranty of
 	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with cpp-elementrem.  If not, see <http://www.gnu.org/licenses/>.
+	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
-/**
- * 
- * 
- * 
- * Full-stack compiler that converts a source code string to bytecode.
- */
 
-#include <boost/algorithm/string.hpp>
-#include <boost/filesystem.hpp>
+
+
+
+
+
+
+
+#include <libsolidity/interface/CompilerStack.h>
+
+#include <libsolidity/interface/Version.h>
+#include <libsolidity/analysis/SemVerHandler.h>
 #include <libsolidity/ast/AST.h>
 #include <libsolidity/parsing/Scanner.h>
 #include <libsolidity/parsing/Parser.h>
@@ -30,13 +33,23 @@
 #include <libsolidity/analysis/NameAndTypeResolver.h>
 #include <libsolidity/analysis/TypeChecker.h>
 #include <libsolidity/analysis/DocStringAnalyser.h>
+#include <libsolidity/analysis/StaticAnalyzer.h>
+#include <libsolidity/analysis/PostTypeChecker.h>
 #include <libsolidity/analysis/SyntaxChecker.h>
 #include <libsolidity/codegen/Compiler.h>
-#include <libsolidity/interface/CompilerStack.h>
 #include <libsolidity/interface/InterfaceHandler.h>
 #include <libsolidity/formal/Why3Translator.h>
 
-#include <libdevcore/SHA3.h>
+#include <libevmasm/Exceptions.h>
+
+#include <libdevcore/SwarmHash.h>
+#include <libdevcore/JSON.h>
+
+#include <json/json.h>
+
+#include <boost/algorithm/string.hpp>
+#include <boost/filesystem.hpp>
+
 
 using namespace std;
 using namespace dev;
@@ -73,7 +86,10 @@ void CompilerStack::reset(bool _keepSources)
 	{
 		m_sources.clear();
 	}
+	m_optimize = false;
+	m_optimizeRuns = 200;
 	m_globalContext.reset();
+	m_scopes.clear();
 	m_sourceOrder.clear();
 	m_contracts.clear();
 	m_errors.clear();
@@ -98,7 +114,15 @@ bool CompilerStack::parse()
 {
 	//reset
 	m_errors.clear();
+	ASTNode::resetID();
 	m_parseSuccessful = false;
+
+	if (SemVerVersion{string(VersionString)}.isPrerelease())
+	{
+		auto err = make_shared<Error>(Error::Type::Warning);
+		*err << errinfo_comment("This is a pre-release compiler version, please do not use it in production.");
+		m_errors.push_back(err);
+	}
 
 	vector<string> sourcesToParse;
 	for (auto const& s: m_sources)
@@ -126,7 +150,7 @@ bool CompilerStack::parse()
 		}
 	}
 	if (!Error::containsOnlyWarnings(m_errors))
-		// errors while parsing. sould stop before type checking
+		// errors while parsing. should stop before type checking
 		return false;
 
 	resolveImports();
@@ -143,7 +167,7 @@ bool CompilerStack::parse()
 			noErrors = false;
 
 	m_globalContext = make_shared<GlobalContext>();
-	NameAndTypeResolver resolver(m_globalContext->declarations(), m_errors);
+	NameAndTypeResolver resolver(m_globalContext->declarations(), m_scopes, m_errors);
 	for (Source const* source: m_sourceOrder)
 		if (!resolver.registerDeclarations(*source->ast))
 			return false;
@@ -160,11 +184,15 @@ bool CompilerStack::parse()
 				if (!resolver.updateDeclaration(*m_globalContext->currentThis())) return false;
 				if (!resolver.updateDeclaration(*m_globalContext->currentSuper())) return false;
 				if (!resolver.resolveNamesAndTypes(*contract)) return false;
-				m_contracts[contract->name()].contract = contract;
-			}
 
-	if (!checkLibraryNameClashes())
-		noErrors = false;
+				// Note that we now reference contracts by their fully qualified names, and
+				// thus contracts can only conflict if declared in the same source file.  This
+				// already causes a double-declaration error elsewhere, so we do not report
+				// an error here and instead silently drop any additional contracts we find.
+
+				if (m_contracts.find(contract->fullyQualifiedName()) == m_contracts.end())
+					m_contracts[contract->fullyQualifiedName()].contract = contract;
+			}
 
 	for (Source const* source: m_sourceOrder)
 		for (ASTPointer<ASTNode> const& node: source->ast->nodes())
@@ -181,8 +209,31 @@ bool CompilerStack::parse()
 				else
 					noErrors = false;
 
-				m_contracts[contract->name()].contract = contract;
+				// Note that we now reference contracts by their fully qualified names, and
+				// thus contracts can only conflict if declared in the same source file.  This
+				// already causes a double-declaration error elsewhere, so we do not report
+				// an error here and instead silently drop any additional contracts we find.
+
+				if (m_contracts.find(contract->fullyQualifiedName()) == m_contracts.end())
+					m_contracts[contract->fullyQualifiedName()].contract = contract;
 			}
+
+	if (noErrors)
+	{
+		PostTypeChecker postTypeChecker(m_errors);
+		for (Source const* source: m_sourceOrder)
+			if (!postTypeChecker.check(*source->ast))
+				noErrors = false;
+	}
+
+	if (noErrors)
+	{
+		StaticAnalyzer staticAnalyzer(m_errors);
+		for (Source const* source: m_sourceOrder)
+			if (!staticAnalyzer.analyze(*source->ast))
+				noErrors = false;
+	}
+
 	m_parseSuccessful = noErrors;
 	return m_parseSuccessful;
 }
@@ -204,32 +255,37 @@ vector<string> CompilerStack::contractNames() const
 }
 
 
-bool CompilerStack::compile(bool _optimize, unsigned _runs)
+bool CompilerStack::compile(bool _optimize, unsigned _runs, map<string, h160> const& _libraries)
 {
 	if (!m_parseSuccessful)
 		if (!parse())
 			return false;
 
+	m_optimize = _optimize;
+	m_optimizeRuns = _runs;
+	m_libraries = _libraries;
+
 	map<ContractDefinition const*, ele::Assembly const*> compiledContracts;
 	for (Source const* source: m_sourceOrder)
 		for (ASTPointer<ASTNode> const& node: source->ast->nodes())
 			if (auto contract = dynamic_cast<ContractDefinition const*>(node.get()))
-				compileContract(_optimize, _runs, *contract, compiledContracts);
+				compileContract(*contract, compiledContracts);
+	this->link();
 	return true;
 }
 
-bool CompilerStack::compile(string const& _sourceCode, bool _optimize)
+bool CompilerStack::compile(string const& _sourceCode, bool _optimize, unsigned _runs)
 {
-	return parse(_sourceCode) && compile(_optimize);
+	return parse(_sourceCode) && compile(_optimize, _runs);
 }
 
-void CompilerStack::link(const std::map<string, h160>& _libraries)
+void CompilerStack::link()
 {
 	for (auto& contract: m_contracts)
 	{
-		contract.second.object.link(_libraries);
-		contract.second.runtimeObject.link(_libraries);
-		contract.second.cloneObject.link(_libraries);
+		contract.second.object.link(m_libraries);
+		contract.second.runtimeObject.link(m_libraries);
+		contract.second.cloneObject.link(m_libraries);
 	}
 }
 
@@ -281,6 +337,27 @@ string const* CompilerStack::runtimeSourceMapping(string const& _contractName) c
 	return c.runtimeSourceMapping.get();
 }
 
+std::string const CompilerStack::filesystemFriendlyName(string const& _contractName) const
+{
+	// Look up the contract (by its fully-qualified name)
+	Contract const& matchContract = m_contracts.at(_contractName);
+	// Check to see if it could collide on name
+	for (auto const& contract: m_contracts)
+	{
+		if (contract.second.contract->name() == matchContract.contract->name() &&
+				contract.second.contract != matchContract.contract)
+		{
+			// If it does, then return its fully-qualified name, made fs-friendly
+			std::string friendlyName = boost::algorithm::replace_all_copy(_contractName, "/", "_");
+			boost::algorithm::replace_all(friendlyName, ":", "_");
+			boost::algorithm::replace_all(friendlyName, ".", "_");
+			return friendlyName;
+		}
+	}
+	// If no collision, return the contract's name
+	return matchContract.contract->name();
+}
+
 ele::LinkerObject const& CompilerStack::object(string const& _contractName) const
 {
 	return contract(_contractName).object;
@@ -302,7 +379,7 @@ dev::h256 CompilerStack::contractCodeHash(string const& _contractName) const
 	if (obj.bytecode.empty() || !obj.linkReferences.empty())
 		return dev::h256();
 	else
-		return dev::sha3(obj.bytecode);
+		return dev::keccak256(obj.bytecode);
 }
 
 Json::Value CompilerStack::streamAssembly(ostream& _outStream, string const& _contractName, StringMap _sourceCodes, bool _inJsonFormat) const
@@ -333,30 +410,38 @@ map<string, unsigned> CompilerStack::sourceIndices() const
 	return indices;
 }
 
-string const& CompilerStack::interface(string const& _contractName) const
+Json::Value const& CompilerStack::interface(string const& _contractName) const
 {
 	return metadata(_contractName, DocumentationType::ABIInterface);
 }
 
-string const& CompilerStack::metadata(string const& _contractName, DocumentationType _type) const
+Json::Value const& CompilerStack::metadata(string const& _contractName, DocumentationType _type) const
 {
 	if (!m_parseSuccessful)
 		BOOST_THROW_EXCEPTION(CompilerError() << errinfo_comment("Parsing was not successful."));
 
-	std::unique_ptr<string const>* doc;
-	Contract const& currentContract = contract(_contractName);
+	return metadata(contract(_contractName), _type);
+}
+
+Json::Value const& CompilerStack::metadata(Contract const& _contract, DocumentationType _type) const
+{
+	if (!m_parseSuccessful)
+		BOOST_THROW_EXCEPTION(CompilerError() << errinfo_comment("Parsing was not successful."));
+
+	solAssert(_contract.contract, "");
+	std::unique_ptr<Json::Value const>* doc;
 
 	// checks wheather we already have the documentation
 	switch (_type)
 	{
 	case DocumentationType::NatspecUser:
-		doc = &currentContract.userDocumentation;
+		doc = &_contract.userDocumentation;
 		break;
 	case DocumentationType::NatspecDev:
-		doc = &currentContract.devDocumentation;
+		doc = &_contract.devDocumentation;
 		break;
 	case DocumentationType::ABIInterface:
-		doc = &currentContract.interface;
+		doc = &_contract.interface;
 		break;
 	default:
 		BOOST_THROW_EXCEPTION(InternalCompilerError() << errinfo_comment("Illegal documentation type."));
@@ -364,9 +449,17 @@ string const& CompilerStack::metadata(string const& _contractName, Documentation
 
 	// caches the result
 	if (!*doc)
-		doc->reset(new string(InterfaceHandler::documentation(*currentContract.contract, _type)));
+		doc->reset(new Json::Value(InterfaceHandler::documentation(*_contract.contract, _type)));
 
 	return *(*doc);
+}
+
+string const& CompilerStack::onChainMetadata(string const& _contractName) const
+{
+	if (!m_parseSuccessful)
+		BOOST_THROW_EXCEPTION(CompilerError() << errinfo_comment("Parsing was not successful."));
+
+	return contract(_contractName).onChainMetadata;
 }
 
 Scanner const& CompilerStack::scanner(string const& _sourceName) const
@@ -459,23 +552,32 @@ string CompilerStack::applyRemapping(string const& _path, string const& _context
 	};
 
 	size_t longestPrefix = 0;
-	string longestPrefixTarget;
+	size_t longestContext = 0;
+	string bestMatchTarget;
+
 	for (auto const& redir: m_remappings)
 	{
-		// Skip if we already have a closer match.
-		if (longestPrefix > 0 && redir.prefix.length() <= longestPrefix)
+		string context = sanitizePath(redir.context);
+		string prefix = sanitizePath(redir.prefix);
+
+		// Skip if current context is closer
+		if (context.length() < longestContext)
 			continue;
 		// Skip if redir.context is not a prefix of _context
-		if (!isPrefixOf(redir.context, _context))
+		if (!isPrefixOf(context, _context))
+			continue;
+		// Skip if we already have a closer prefix match.
+		if (prefix.length() < longestPrefix && context.length() == longestContext)
 			continue;
 		// Skip if the prefix does not match.
-		if (!isPrefixOf(redir.prefix, _path))
+		if (!isPrefixOf(prefix, _path))
 			continue;
 
-		longestPrefix = redir.prefix.length();
-		longestPrefixTarget = redir.target;
+		longestContext = context.length();
+		longestPrefix = prefix.length();
+		bestMatchTarget = sanitizePath(redir.target);
 	}
-	string path = longestPrefixTarget;
+	string path = bestMatchTarget;
 	path.append(_path.begin() + longestPrefix, _path.end());
 	return path;
 }
@@ -510,44 +612,13 @@ void CompilerStack::resolveImports()
 	swap(m_sourceOrder, sourceOrder);
 }
 
-bool CompilerStack::checkLibraryNameClashes()
-{
-	bool clashFound = false;
-	map<string, SourceLocation> libraries;
-	for (Source const* source: m_sourceOrder)
-		for (ASTPointer<ASTNode> const& node: source->ast->nodes())
-			if (ContractDefinition* contract = dynamic_cast<ContractDefinition*>(node.get()))
-				if (contract->isLibrary())
-				{
-					if (libraries.count(contract->name()))
-					{
-						auto err = make_shared<Error>(Error::Type::DeclarationError);
-						*err <<
-							errinfo_sourceLocation(contract->location()) <<
-							errinfo_comment(
-								"Library \"" + contract->name() + "\" declared twice "
-								"(will create ambiguities during linking)."
-							) <<
-							errinfo_secondarySourceLocation(SecondarySourceLocation().append(
-									"The other declaration is here:", libraries[contract->name()]
-							));
-
-						m_errors.push_back(err);
-						clashFound = true;
-					}
-					else
-						libraries[contract->name()] = contract->location();
-				}
-	return !clashFound;
-}
-
 string CompilerStack::absolutePath(string const& _path, string const& _reference) const
 {
-	// Anything that does not start with `.` is an absolute path.
-	if (_path.empty() || _path.front() != '.')
-		return _path;
 	using path = boost::filesystem::path;
 	path p(_path);
+	// Anything that does not start with `.` is an absolute path.
+	if (p.begin() == p.end() || (*p.begin() != "." && *p.begin() != ".."))
+		return _path;
 	path result(_reference);
 	result.remove_filename();
 	for (path::iterator it = p.begin(); it != p.end(); ++it)
@@ -559,28 +630,49 @@ string CompilerStack::absolutePath(string const& _path, string const& _reference
 }
 
 void CompilerStack::compileContract(
-	bool _optimize,
-	unsigned _runs,
 	ContractDefinition const& _contract,
 	map<ContractDefinition const*, ele::Assembly const*>& _compiledContracts
 )
 {
-	if (_compiledContracts.count(&_contract) || !_contract.annotation().isFullyImplemented)
+	if (
+		_compiledContracts.count(&_contract) ||
+		!_contract.annotation().isFullyImplemented ||
+		!_contract.constructorIsPublic()
+	)
 		return;
 	for (auto const* dependency: _contract.annotation().contractDependencies)
-		compileContract(_optimize, _runs, *dependency, _compiledContracts);
+		compileContract(*dependency, _compiledContracts);
 
-	shared_ptr<Compiler> compiler = make_shared<Compiler>(_optimize, _runs);
-	compiler->compileContract(_contract, _compiledContracts);
-	Contract& compiledContract = m_contracts.at(_contract.name());
+	shared_ptr<Compiler> compiler = make_shared<Compiler>(m_optimize, m_optimizeRuns);
+	Contract& compiledContract = m_contracts.at(_contract.fullyQualifiedName());
+	string onChainMetadata = createOnChainMetadata(compiledContract);
+	bytes cborEncodedMetadata =
+		// CBOR-encoding of {"bzzr0": dev::swarmHash(onChainMetadata)}
+		bytes{0xa1, 0x65, 'b', 'z', 'z', 'r', '0', 0x58, 0x20} +
+		dev::swarmHash(onChainMetadata).asBytes();
+	solAssert(cborEncodedMetadata.size() <= 0xffff, "Metadata too large");
+	// 16-bit big endian length
+	cborEncodedMetadata += toCompactBigEndian(cborEncodedMetadata.size(), 2);
+	compiler->compileContract(_contract, _compiledContracts, cborEncodedMetadata);
 	compiledContract.compiler = compiler;
 	compiledContract.object = compiler->assembledObject();
 	compiledContract.runtimeObject = compiler->runtimeObject();
+	compiledContract.onChainMetadata = onChainMetadata;
 	_compiledContracts[compiledContract.contract] = &compiler->assembly();
 
-	Compiler cloneCompiler(_optimize, _runs);
-	cloneCompiler.compileClone(_contract, _compiledContracts);
-	compiledContract.cloneObject = cloneCompiler.assembledObject();
+	try
+	{
+		Compiler cloneCompiler(m_optimize, m_optimizeRuns);
+		cloneCompiler.compileClone(_contract, _compiledContracts);
+		compiledContract.cloneObject = cloneCompiler.assembledObject();
+	}
+	catch (ele::AssemblyException const&)
+	{
+		// In some cases (if the constructor requests a runtime function), it is not
+		// possible to compile the clone.
+
+		// TODO: Report error / warning
+	}
 }
 
 std::string CompilerStack::defaultContractName() const
@@ -598,10 +690,27 @@ CompilerStack::Contract const& CompilerStack::contract(string const& _contractNa
 		for (auto const& it: m_sources)
 			for (ASTPointer<ASTNode> const& node: it.second.ast->nodes())
 				if (auto contract = dynamic_cast<ContractDefinition const*>(node.get()))
-					contractName = contract->name();
+					contractName = contract->fullyQualifiedName();
 	auto it = m_contracts.find(contractName);
-	if (it == m_contracts.end())
+	// To provide a measure of backward-compatibility, if a contract is not located by its
+	// fully-qualified name, a lookup will be attempted purely on the contract's name to see
+	// if anything will satisfy.
+	if (it == m_contracts.end() && contractName.find(":") == string::npos)
+	{
+		for (auto const& contractEntry: m_contracts)
+		{
+			stringstream ss;
+			ss.str(contractEntry.first);
+			// All entries are <source>:<contract>
+			string source;
+			string foundName;
+			getline(ss, source, ':');
+			getline(ss, foundName, ':');
+			if (foundName == contractName) return contractEntry.second;
+		}
+		// If we get here, both lookup methods failed.
 		BOOST_THROW_EXCEPTION(CompilerError() << errinfo_comment("Contract " + _contractName + " not found."));
+	}
 	return it->second;
 }
 
@@ -612,6 +721,52 @@ CompilerStack::Source const& CompilerStack::source(string const& _sourceName) co
 		BOOST_THROW_EXCEPTION(CompilerError() << errinfo_comment("Given source file not found."));
 
 	return it->second;
+}
+
+string CompilerStack::createOnChainMetadata(Contract const& _contract) const
+{
+	Json::Value meta;
+	meta["version"] = 1;
+	meta["language"] = "Solidity";
+	meta["compiler"]["version"] = VersionStringStrict;
+
+	meta["sources"] = Json::objectValue;
+	for (auto const& s: m_sources)
+	{
+		solAssert(s.second.scanner, "Scanner not available");
+		meta["sources"][s.first]["keccak256"] =
+			"0x" + toHex(dev::keccak256(s.second.scanner->source()).asBytes());
+		if (m_metadataLiteralSources)
+			meta["sources"][s.first]["content"] = s.second.scanner->source();
+		else
+		{
+			meta["sources"][s.first]["urls"] = Json::arrayValue;
+			meta["sources"][s.first]["urls"].append(
+				"bzzr://" + toHex(dev::swarmHash(s.second.scanner->source()).asBytes())
+			);
+		}
+	}
+	meta["settings"]["optimizer"]["enabled"] = m_optimize;
+	meta["settings"]["optimizer"]["runs"] = m_optimizeRuns;
+	meta["settings"]["compilationTarget"][_contract.contract->sourceUnitName()] =
+		_contract.contract->annotation().canonicalName;
+
+	meta["settings"]["remappings"] = Json::arrayValue;
+	set<string> remappings;
+	for (auto const& r: m_remappings)
+		remappings.insert(r.context + ":" + r.prefix + "=" + r.target);
+	for (auto const& r: remappings)
+		meta["settings"]["remappings"].append(r);
+
+	meta["settings"]["libraries"] = Json::objectValue;
+	for (auto const& library: m_libraries)
+		meta["settings"]["libraries"][library.first] = "0x" + toHex(library.second.asBytes());
+
+	meta["output"]["abi"] = metadata(_contract, DocumentationType::ABIInterface);
+	meta["output"]["userdoc"] = metadata(_contract, DocumentationType::NatspecUser);
+	meta["output"]["devdoc"] = metadata(_contract, DocumentationType::NatspecDev);
+
+	return jsonCompactPrint(meta);
 }
 
 string CompilerStack::computeSourceMapping(ele::AssemblyItems const& _items) const

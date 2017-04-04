@@ -1,25 +1,25 @@
 /*
-    This file is part of cpp-elementrem.
+    This file is part of solidity.
 
-    cpp-elementrem is free software: you can redistribute it and/or modify
+    solidity is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
-    cpp-elementrem is distributed in the hope that it will be useful,
+    solidity is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with cpp-elementrem.  If not, see <http://www.gnu.org/licenses/>.
+    along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
-/**
- * 
- * 
- * Implementation of the accept functions of AST nodes, included by AST.cpp to not clutter that
- * file with these mechanical implementations.
- */
+
+
+
+
+
+
 
 #pragma once
 
@@ -324,6 +324,26 @@ void UserDefinedTypeName::accept(ASTVisitor& _visitor)
 void UserDefinedTypeName::accept(ASTConstVisitor& _visitor) const
 {
 	_visitor.visit(*this);
+	_visitor.endVisit(*this);
+}
+
+void FunctionTypeName::accept(ASTVisitor& _visitor)
+{
+	if (_visitor.visit(*this))
+	{
+		m_parameterTypes->accept(_visitor);
+		m_returnTypes->accept(_visitor);
+	}
+	_visitor.endVisit(*this);
+}
+
+void FunctionTypeName::accept(ASTConstVisitor& _visitor) const
+{
+	if (_visitor.visit(*this))
+	{
+		m_parameterTypes->accept(_visitor);
+		m_returnTypes->accept(_visitor);
+	}
 	_visitor.endVisit(*this);
 }
 

@@ -1,24 +1,24 @@
 /*
-	This file is part of cpp-elementrem.
+	This file is part of solidity.
 
-	cpp-elementrem is free software: you can redistribute it and/or modify
+	solidity is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
 	the Free Software Foundation, either version 3 of the License, or
 	(at your option) any later version.
 
-	cpp-elementrem is distributed in the hope that it will be useful,
+	solidity is distributed in the hope that it will be useful,
 	but WITHOUT ANY WARRANTY; without even the implied warranty of
 	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with cpp-elementrem.  If not, see <http://www.gnu.org/licenses/>.
+	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
-/**
- * 
- * 
- * Unit tests for Assembly Items from evmasm/Assembly.h
- */
+
+
+
+
+
 
 #include <string>
 #include <iostream>
@@ -53,7 +53,8 @@ ele::AssemblyItems compileContract(const string& _sourceCode)
 	BOOST_REQUIRE_NO_THROW(sourceUnit = parser.parse(make_shared<Scanner>(CharStream(_sourceCode))));
 	BOOST_CHECK(!!sourceUnit);
 
-	NameAndTypeResolver resolver({}, errors);
+	map<ASTNode const*, shared_ptr<DeclarationContainer>> scopes;
+	NameAndTypeResolver resolver({}, scopes, errors);
 	solAssert(Error::containsOnlyWarnings(errors), "");
 	resolver.registerDeclarations(*sourceUnit);
 	for (ASTPointer<ASTNode> const& node: sourceUnit->nodes())
@@ -75,7 +76,7 @@ ele::AssemblyItems compileContract(const string& _sourceCode)
 		if (ContractDefinition* contract = dynamic_cast<ContractDefinition*>(node.get()))
 		{
 			Compiler compiler;
-			compiler.compileContract(*contract, map<ContractDefinition const*, Assembly const*>{});
+			compiler.compileContract(*contract, map<ContractDefinition const*, Assembly const*>{}, bytes());
 
 			return compiler.runtimeAssemblyItems();
 		}
@@ -91,8 +92,10 @@ void checkAssemblyLocations(AssemblyItems const& _items, vector<SourceLocation> 
 		BOOST_CHECK_MESSAGE(
 			_items[i].location() == _locations[i],
 			"Location mismatch for assembly item " + to_string(i) + ". Found: " +
+					(_items[i].location().sourceName ? *_items[i].location().sourceName + ":" : "(null source name)") +
 					to_string(_items[i].location().start) + "-" +
 					to_string(_items[i].location().end) + ", expected: " +
+					(_locations[i].sourceName ? *_locations[i].sourceName + ":" : "(null source name)") +
 					to_string(_locations[i].start) + "-" +
 					to_string(_locations[i].end));
 	}
@@ -111,13 +114,13 @@ BOOST_AUTO_TEST_CASE(location_test)
 		}
 	}
 	)";
-	shared_ptr<string const> n = make_shared<string>("source");
+	shared_ptr<string const> n = make_shared<string>("");
 	AssemblyItems items = compileContract(sourceCode);
 	vector<SourceLocation> locations =
-		vector<SourceLocation>(18, SourceLocation(2, 75, n)) +
-		vector<SourceLocation>(31, SourceLocation(20, 72, n)) +
+		vector<SourceLocation>(17, SourceLocation(2, 75, n)) +
+		vector<SourceLocation>(30, SourceLocation(20, 72, n)) +
 		vector<SourceLocation>{SourceLocation(42, 51, n), SourceLocation(65, 67, n)} +
-		vector<SourceLocation>(4, SourceLocation(58, 67, n)) +
+		vector<SourceLocation>(2, SourceLocation(58, 67, n)) +
 		vector<SourceLocation>(3, SourceLocation(20, 72, n));
 	checkAssemblyLocations(items, locations);
 }

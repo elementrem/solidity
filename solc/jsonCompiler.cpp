@@ -1,24 +1,24 @@
 /*
-	This file is part of cpp-elementrem.
+	This file is part of solidity.
 
-	cpp-elementrem is free software: you can redistribute it and/or modify
+	solidity is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
 	the Free Software Foundation, either version 3 of the License, or
 	(at your option) any later version.
 
-	cpp-elementrem is distributed in the hope that it will be useful,
+	solidity is distributed in the hope that it will be useful,
 	but WITHOUT ANY WARRANTY; without even the implied warranty of
 	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with cpp-elementrem.  If not, see <http://www.gnu.org/licenses/>.
+	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
-/**
- * 
- * 
- * JSON interface for the solidity compiler to be used from Javascript.
- */
+
+
+
+
+
 
 #include <string>
 #include <functional>
@@ -27,6 +27,7 @@
 #include <libdevcore/Common.h>
 #include <libdevcore/CommonData.h>
 #include <libdevcore/CommonIO.h>
+#include <libdevcore/JSON.h>
 #include <libevmasm/Instruction.h>
 #include <libevmasm/GasMeter.h>
 #include <libsolidity/parsing/Scanner.h>
@@ -183,11 +184,15 @@ string compile(StringMap const& _sources, bool _optimize, CStyleReadFileCallback
 	}
 	catch (CompilerError const& exception)
 	{
-		errors.append(formatError(exception, "Compiler error", scannerFromSourceName));
+		errors.append(formatError(exception, "Compiler error (" + exception.lineInfo() + ")", scannerFromSourceName));
 	}
 	catch (InternalCompilerError const& exception)
 	{
-		errors.append(formatError(exception, "Internal compiler error", scannerFromSourceName));
+		errors.append(formatError(exception, "Internal compiler error (" + exception.lineInfo() + ")", scannerFromSourceName));
+	}
+	catch (UnimplementedFeatureError const& exception)
+	{
+		errors.append(formatError(exception, "Unimplemented feature (" + exception.lineInfo() + ")", scannerFromSourceName));
 	}
 	catch (Exception const& exception)
 	{
@@ -209,10 +214,11 @@ string compile(StringMap const& _sources, bool _optimize, CStyleReadFileCallback
 			for (string const& contractName: compiler.contractNames())
 			{
 				Json::Value contractData(Json::objectValue);
-				contractData["interface"] = compiler.interface(contractName);
+				contractData["interface"] = dev::jsonCompactPrint(compiler.interface(contractName));
 				contractData["bytecode"] = compiler.object(contractName).toHex();
 				contractData["runtimeBytecode"] = compiler.runtimeObject(contractName).toHex();
 				contractData["opcodes"] = solidity::disassemble(compiler.object(contractName).bytecode);
+				contractData["metadata"] = compiler.onChainMetadata(contractName);
 				contractData["functionHashes"] = functionHashes(compiler.contractDefinition(contractName));
 				contractData["gasEstimates"] = estimateGas(compiler, contractName);
 				auto sourceMap = compiler.sourceMapping(contractName);
@@ -270,7 +276,7 @@ string compile(StringMap const& _sources, bool _optimize, CStyleReadFileCallback
 
 	try
 	{
-		return Json::FastWriter().write(output);
+		return dev::jsonCompactPrint(output);
 	}
 	catch (...)
 	{
@@ -288,7 +294,7 @@ string compileMulti(string const& _input, bool _optimize, CStyleReadFileCallback
 		errors.append("Error parsing input JSON: " + reader.getFormattedErrorMessages());
 		Json::Value output(Json::objectValue);
 		output["errors"] = errors;
-		return Json::FastWriter().write(output);
+		return dev::jsonCompactPrint(output);
 	}
 	else
 	{

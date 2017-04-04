@@ -1,26 +1,28 @@
 /*
-	This file is part of cpp-elementrem.
+	This file is part of solidity.
 
-	cpp-elementrem is free software: you can redistribute it and/or modify
+	solidity is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
 	the Free Software Foundation, either version 3 of the License, or
 	(at your option) any later version.
 
-	cpp-elementrem is distributed in the hope that it will be useful,
+	solidity is distributed in the hope that it will be useful,
 	but WITHOUT ANY WARRANTY; without even the implied warranty of
 	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with cpp-elementrem.  If not, see <http://www.gnu.org/licenses/>.
+	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
-/**
- * 
- * 
- * Code generation utils that handle arrays.
- */
+
+
+
+
+
 
 #pragma once
+
+#include <memory>
 
 namespace dev
 {
@@ -30,6 +32,7 @@ namespace solidity
 class CompilerContext;
 class Type;
 class ArrayType;
+using TypePointer = std::shared_ptr<Type const>;
 
 /**
  * Class that provides code generation for handling arrays.
@@ -67,7 +70,7 @@ public:
 	/// Appends a loop that clears a sequence of storage slots of the given type (excluding end).
 	/// Stack pre: end_ref start_ref
 	/// Stack post: end_ref
-	void clearStorageLoop(Type const& _type) const;
+	void clearStorageLoop(TypePointer const& _type) const;
 	/// Converts length to size (number of storage slots or calldata/memory bytes).
 	/// if @a _pad then add padding to multiples of 32 bytes for calldata/memory.
 	/// Stack pre: length
