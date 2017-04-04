@@ -24,7 +24,7 @@
 
 #include <libsolidity/interface/Exceptions.h>
 #include <libsolidity/ast/ASTForward.h>
-#include <libsolidity/parsing /Token.h>
+#include <libsolidity/parsing/Token.h>
 
 #include <libdevcore/Common.h>
 #include <libdevcore/CommonIO.h>
