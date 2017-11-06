@@ -8,21 +8,34 @@ include(ElePolicy)
 ele_policy()
 
 # project name and version should be set after cmake_policy CMP0048
-set(PROJECT_VERSION "0.4.10")
+set(PROJECT_VERSION "0.4.18")
 project(solidity VERSION ${PROJECT_VERSION})
+
+option(SOLC_LINK_STATIC "Link solc executable statically on supported platforms" OFF)
+
+# Setup cccache.
+include(EleCcache)
 
 # Let's find our dependencies
 include(EleDependencies)
-include(deps/jsoncpp.cmake)
+include(jsoncpp)
+
+find_package(Threads)
 
 # Figure out what compiler and system are we using
 include(EleCompilerSettings)
 
-# Include helper macros
-include(EleExecutableHelper)
-
 # Include utils
 include(EleUtils)
+
+# Create license.h from LICENSE.txt and template
+# Converting to char array is required due to MSVC's string size limit.
+file(READ ${CMAKE_SOURCE_DIR}/LICENSE.txt LICENSE_TEXT HEX)
+string(REGEX MATCHALL ".." LICENSE_TEXT "${LICENSE_TEXT}")
+string(REGEX REPLACE ";" ",\n\t0x" LICENSE_TEXT "${LICENSE_TEXT}")
+set(LICENSE_TEXT "0x${LICENSE_TEXT}")
+
+configure_file("${CMAKE_SOURCE_DIR}/cmake/templates/license.h.in" include/license.h)
 
 include(EleOptions)
 configure_project(TESTS)

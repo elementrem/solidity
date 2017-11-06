@@ -14,11 +14,11 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
-
-
-
-
-
+/**
+ * @author Christian <c@ethdev.com>
+ * @date 2014
+ * Solidity commandline compiler.
+ */
 
 #include "CommandLineInterface.h"
 #include <clocale>
@@ -40,7 +40,7 @@ specified default locale if it is valid, and if not then it will modify the
 environment the process is running in to use a sensible default. This also means
 that users do not need to install language packs for their OS.
 */
-void setDefaultOrCLocale()
+static void setDefaultOrCLocale()
 {
 #if __unix__
 	if (!std::setlocale(LC_ALL, ""))

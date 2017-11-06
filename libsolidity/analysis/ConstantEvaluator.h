@@ -14,11 +14,11 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
-
-
-
-
-
+/**
+ * @author Christian <c@ethdev.com>
+ * @date 2015
+ * Evaluator for types of constant expressions.
+ */
 
 #pragma once
 
@@ -29,6 +29,7 @@ namespace dev
 namespace solidity
 {
 
+class ErrorReporter;
 class TypeChecker;
 
 /**
@@ -37,13 +38,18 @@ class TypeChecker;
 class ConstantEvaluator: private ASTConstVisitor
 {
 public:
-	ConstantEvaluator(Expression const& _expr) { _expr.accept(*this); }
+	ConstantEvaluator(Expression const& _expr, ErrorReporter& _errorReporter):
+		m_errorReporter(_errorReporter)
+	{
+		_expr.accept(*this);
+	}
 
 private:
 	virtual void endVisit(BinaryOperation const& _operation);
 	virtual void endVisit(UnaryOperation const& _operation);
 	virtual void endVisit(Literal const& _literal);
 
+	ErrorReporter& m_errorReporter;
 };
 
 }

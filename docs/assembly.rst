@@ -9,9 +9,12 @@ This assembly language can also be used as "inline assembly" inside Solidity
 source code. We start with describing how to use inline assembly and how it
 differs from standalone assembly and then specify assembly itself.
 
-TODO: Write about how scoping rules of inline assembly are a bit different
-and the complications that arise when for example using internal functions
-of libraries. Furhermore, write about the symbols defined by the compiler.
+.. note::
+    TODO: Write about how scoping rules of inline assembly are a bit different
+    and the complications that arise when for example using internal functions
+    of libraries. Furthermore, write about the symbols defined by the compiler.
+
+.. _inline-assembly:
 
 Inline Assembly
 ===============
@@ -28,16 +31,13 @@ arising when writing manual assembly by the following features:
 * access to external variables: ``function f(uint x) { assembly { x := sub(x, 1) } }``
 * labels: ``let x := 10  repeat: x := sub(x, 1) jumpi(repeat, eq(x, 0))``
 * loops: ``for { let i := 0 } lt(i, x) { i := add(i, 1) } { y := mul(2, y) }``
-* switch statements: ``switch x case 0: { y := mul(x, 2) } default: { y := 0 }``
-* function calls: ``function f(x) -> (y) { switch x case 0: { y := 1 } default: { y := mul(x, f(sub(x, 1))) }   }``
-
-.. note::
-    Of the above, loops, function calls and switch statements are not yet implemented.
+* switch statements: ``switch x case 0 { y := mul(x, 2) } default { y := 0 }``
+* function calls: ``function f(x) -> y { switch x case 0 { y := 1 } default { y := mul(x, f(sub(x, 1))) }   }``
 
 We now want to describe the inline assembly language in detail.
 
 .. warning::
-    Inline assembly is a way to access the Elementrem Virtual Machine
+    Inline assembly is a way to access the Ethereum Virtual Machine
     at a low level. This discards several important safety
     features of Solidity.
 
@@ -77,7 +77,7 @@ you really know what you are doing.
 
 .. code::
 
-    pragma solidity ^0.4.0;
+    pragma solidity ^0.4.12;
 
     library VectorSum {
         // This function is less efficient because the optimizer currently fails to
@@ -93,8 +93,33 @@ you really know what you are doing.
         function sumAsm(uint[] _data) returns (uint o_sum) {
             for (uint i = 0; i < _data.length; ++i) {
                 assembly {
-                    o_sum := mload(add(add(_data, 0x20), mul(i, 0x20)))
+                    o_sum := add(o_sum, mload(add(add(_data, 0x20), mul(i, 0x20))))
                 }
+            }
+        }
+
+        // Same as above, but accomplish the entire code within inline assembly.
+        function sumPureAsm(uint[] _data) returns (uint o_sum) {
+            assembly {
+               // Load the length (first 32 bytes)
+               let len := mload(_data)
+
+               // Skip over the length field.
+               //
+               // Keep temporary variable so it can be incremented in place.
+               //
+               // NOTE: incrementing _data would result in an unusable
+               //       _data variable after this assembly block
+               let data := add(_data, 0x20)
+
+               // Iterate until the bound is not met.
+               for
+                   { let end := add(data, len) }
+                   lt(data, end)
+                   { data := add(data, 0x20) }
+               {
+                   o_sum := add(o_sum, mload(data))
+               }
             }
         }
     }
@@ -111,7 +136,7 @@ these curly braces, the following can be used (see the later sections for more d
  - opcodes (in "instruction style"), e.g. ``mload sload dup1 sstore``, for a list see below
  - opcodes in functional style, e.g. ``add(1, mlod(0))``
  - labels, e.g. ``name:``
- - variable declarations, e.g. ``let x := 7`` or ``let x := add(y, 3)``
+ - variable declarations, e.g. ``let x := 7``, ``let x := add(y, 3)`` or ``let x`` (initial value of empty (0) is assigned)
  - identifiers (labels or assembly-local variables and externals if used as inline assembly), e.g. ``jump(name)``, ``3 x add``
  - assignments (in "instruction style"), e.g. ``3 =: x``
  - assignments in functional style, e.g. ``x := add(y, 3)``
@@ -120,13 +145,13 @@ these curly braces, the following can be used (see the later sections for more d
 Opcodes
 -------
 
-This document does not want to be a full description of the Elementrem virtual machine, but the
+This document does not want to be a full description of the Ethereum virtual machine, but the
 following list can be used as a reference of its opcodes.
 
 If an opcode takes arguments (always from the top of the stack), they are given in parentheses.
 Note that the order of arguments can be seen to be reversed in non-functional style (explained below).
 Opcodes marked with ``-`` do not push an item onto the stack, those marked with ``*`` are
-special and all others push exactly one item onte the stack.
+special and all others push exactly one item onto the stack.
 
 In the following, ``mem[a...b)`` signifies the bytes of memory starting at position ``a`` up to
 (excluding) position ``b`` and ``storage[p]`` signifies the storage contents at position ``p``.
@@ -182,6 +207,8 @@ In the grammar, opcodes are represented as pre-defined identifiers.
 +-------------------------+------+-----------------------------------------------------------------+
 | signextend(i, x)        |      | sign extend from (i*8+7)th bit counting from least significant  |
 +-------------------------+------+-----------------------------------------------------------------+
+| keccak256(p, n)         |      | keccak(mem[p...(p+n)))                                          |
++-------------------------+------+-----------------------------------------------------------------+
 | sha3(p, n)              |      | keccak(mem[p...(p+n)))                                          |
 +-------------------------+------+-----------------------------------------------------------------+
 | jump(label)             | `-`  | jump to label / code position                                   |
@@ -232,8 +259,16 @@ In the grammar, opcodes are represented as pre-defined identifiers.
 +-------------------------+------+-----------------------------------------------------------------+
 | extcodecopy(a, t, f, s) | `-`  | like codecopy(t, f, s) but take code at address a               |
 +-------------------------+------+-----------------------------------------------------------------+
+| returndatasize          |      | size of the last returndata                                     |
++-------------------------+------+-----------------------------------------------------------------+
+| returndatacopy(t, f, s) | `-`  | copy s bytes from returndata at position f to mem at position t |
++-------------------------+------+-----------------------------------------------------------------+
 | create(v, p, s)         |      | create new contract with code mem[p..(p+s)) and send v mey      |
 |                         |      | and return the new address                                      |
++-------------------------+------+-----------------------------------------------------------------+
+| create2(v, n, p, s)     |      | create new contract with code mem[p..(p+s)) at address          |
+|                         |      | keccak256(<address> . n . keccak256(mem[p..(p+s))) and send v   |
+|                         |      | mey and return the new address                                  |
 +-------------------------+------+-----------------------------------------------------------------+
 | call(g, a, v, in,       |      | call contract at address a with input mem[in..(in+insize))      |
 | insize, out, outsize)   |      | providing g gas and v mey and output area                       |
@@ -245,6 +280,9 @@ In the grammar, opcodes are represented as pre-defined identifiers.
 +-------------------------+------+-----------------------------------------------------------------+
 | delegatecall(g, a, in,  |      | identical to `callcode` but also keep ``caller``                |
 | insize, out, outsize)   |      | and ``callvalue``                                               |
++-------------------------+------+-----------------------------------------------------------------+
+| staticcall(g, a, in,    |      | identical to `call(g, a, 0, in, insize, out, outsize)` but do   |
+| insize, out, outsize)   |      | not allow state modifications                                   |
 +-------------------------+------+-----------------------------------------------------------------+
 | return(p, s)            | `-`  | end execution, return data mem[p..(p+s))                        |
 +-------------------------+------+-----------------------------------------------------------------+
@@ -312,8 +350,10 @@ would be written as follows
 
     mstore(0x80, add(mload(0x80), 3))
 
-Functional style and instructional style can be mixed, but any opcode inside a
-functional style expression has to return exactly one stack slot (most of the opcodes do).
+Functional style expressions cannot use instructional style internally, i.e.
+``1 2 mstore(0x80, add)`` is not valid assembly, it has to be written as
+``mstore(0x80, add(2, 1))``. For opcodes that do not take arguments, the
+parentheses can be omitted.
 
 Note that the order of arguments is reversed in functional-style as opposed to the instruction-style
 way. If you use functional-style, the first argument will end up on the stack top.
@@ -323,9 +363,12 @@ Access to External Variables and Functions
 ------------------------------------------
 
 Solidity variables and other identifiers can be accessed by simply using their name.
-For storage and memory variables, this will push the address and not the value onto the
-stack. Also note that non-struct and non-array storage variable addresses occupy two slots
-on the stack: One for the address and one for the byte offset inside the storage slot.
+For memory variables, this will push the address and not the value onto the
+stack. Storage variables are different: Values in storage might not occupy a
+full storage slot, so their "address" is composed of a slot and a byte-offset
+inside that slot. To retrieve the slot pointed to by the variable ``x``, you
+used ``x_slot`` and to retrieve the byte-offset you used ``x_offset``.
+
 In assignments (see below), we can even use local Solidity variables to assign to.
 
 Functions external to inline assembly can also be accessed: The assembly will
@@ -340,17 +383,13 @@ changes during the call, and thus references to local variables will be wrong.
 
 .. code::
 
-    pragma solidity ^0.4.0;
+    pragma solidity ^0.4.11;
 
     contract C {
         uint b;
         function f(uint x) returns (uint r) {
             assembly {
-                b pop // remove the offset, we know it is zero
-                sload
-                x
-                mul
-                =: r  // assign to return variable r
+                r := mul(x, sload(b_slot)) // ignore the offset, we know it is zero
             }
         }
     }
@@ -432,11 +471,6 @@ As an example how this can be done in extreme cases, please see the following.
         pop // We have to pop the manually pushed value here again.
     }
 
-.. note::
-
-    ``invalidJumpLabel`` is a pre-defined label. Jumping to this location will always
-    result in an invalid jump, effectively aborting execution of the code.
-
 Declaring Assembly-Local Variables
 ----------------------------------
 
@@ -482,7 +516,7 @@ is performed by replacing the variable's value on the stack by the new value.
 
 .. code::
 
-    assembly {
+    {
         let v := 0 // functional-style assignment as part of variable declaration
         let g := add(v, 2)
         sload(10)
@@ -491,9 +525,6 @@ is performed by replacing the variable's value on the stack by the new value.
 
 Switch
 ------
-
-.. note::
-    Switch is not yet implemented.
 
 You can use a switch statement as a very basic version of "if/else".
 It takes the value of an expression and compares it to several constants.
@@ -504,13 +535,13 @@ case called ``default``.
 
 .. code::
 
-    assembly {
+    {
         let x := 0
         switch calldataload(4)
-        case 0: {
+        case 0 {
             x := calldataload(0x24)
         }
-        default: {
+        default {
             x := calldataload(0x44)
         }
         sstore(0, div(x, 2))
@@ -522,13 +553,10 @@ case does require them.
 Loops
 -----
 
-.. note::
-    Loops are not yet implemented.
-
 Assembly supports a simple for-style loop. For-style loops have
 a header containing an initializing part, a condition and a post-iteration
 part. The condition has to be a functional-style expression, while
-the other two can also be blocks. If the initializing part is a block that
+the other two are blocks. If the initializing part
 declares any variables, the scope of these variables is extended into the
 body (including the condition and the post-iteration part).
 
@@ -536,18 +564,29 @@ The following example computes the sum of an area in memory.
 
 .. code::
 
-    assembly {
+    {
         let x := 0
         for { let i := 0 } lt(i, 0x100) { i := add(i, 0x20) } {
             x := add(x, mload(i))
         }
     }
 
+For loops can also be written so that they behave like while loops:
+Simply leave the initialization and post-iteration parts empty.
+
+.. code::
+
+    {
+        let x := 0
+        let i := 0
+        for { } lt(i, 0x100) { } {     // while(i < 0x100)
+            x := add(x, mload(i))
+            i := add(i, 0x20)
+        }
+    } 
+
 Functions
 ---------
-
-.. note::
-    Functions are not yet implemented.
 
 Assembly allows the definition of low-level functions. These take their
 arguments (and a return PC) from the stack and also put the results onto the
@@ -560,21 +599,21 @@ defined outside of that function. There is no explicit ``return``
 statement.
 
 If you call a function that returns multiple values, you have to assign
-them to a tuple using ``(a, b) := f(x)`` or ``let (a, b) := f(x)``.
+them to a tuple using ``a, b := f(x)`` or ``let a, b := f(x)``.
 
 The following example implements the power function by square-and-multiply.
 
 .. code::
 
-    assembly {
-        function power(base, exponent) -> (result) {
+    {
+        function power(base, exponent) -> result {
             switch exponent
-            0: { result := 1 }
-            1: { result := base }
-            default: {
+            case 0 { result := 1 }
+            case 1 { result := base }
+            default {
                 result := power(mul(base, base), div(exponent, 2))
                 switch mod(exponent, 2)
-                    1: { result := mul(base, result) }
+                    case 1 { result := mul(base, result) }
             }
         }
     }
@@ -680,6 +719,8 @@ Example:
 We will follow an example compilation from Solidity to desugared assembly.
 We consider the runtime bytecode of the following Solidity program::
 
+    pragma solidity ^0.4.0;
+
     contract C {
       function f(uint x) returns (uint y) {
         y = 1;
@@ -694,20 +735,20 @@ The following assembly will be generated::
       mstore(0x40, 0x60) // store the "free memory pointer"
       // function dispatcher
       switch div(calldataload(0), exp(2, 226))
-      case 0xb3de648b: {
+      case 0xb3de648b {
         let (r) = f(calldataload(4))
         let ret := $allocate(0x20)
         mstore(ret, r)
         return(ret, 0x20)
       }
-      default: { jump(invalidJumpLabel) }
+      default { revert(0, 0) }
       // memory allocator
-      function $allocate(size) -> (pos) {
+      function $allocate(size) -> pos {
         pos := mload(0x40)
         mstore(0x40, add(pos, size))
       }
       // the contract function
-      function f(x) -> (y) {
+      function f(x) -> y {
         y := 1
         for { let i := 0 } lt(i, x) { i := add(i, 1) } {
           y := mul(2, y)
@@ -745,7 +786,7 @@ After the desugaring phase it looks as follows::
         }
         $caseDefault:
         {
-          jump(invalidJumpLabel)
+          revert(0, 0)
           jump($endswitch)
         }
         $endswitch:
@@ -851,8 +892,8 @@ Grammar::
     AssemblyAssignment = '=:' Identifier
     LabelDefinition = Identifier ':'
     AssemblySwitch = 'switch' FunctionalAssemblyExpression AssemblyCase*
-        ( 'default' ':' AssemblyBlock )?
-    AssemblyCase = 'case' FunctionalAssemblyExpression ':' AssemblyBlock
+        ( 'default' AssemblyBlock )?
+    AssemblyCase = 'case' FunctionalAssemblyExpression AssemblyBlock
     AssemblyFunctionDefinition = 'function' Identifier '(' IdentifierList? ')'
         ( '->' '(' IdentifierList ')' )? AssemblyBlock
     AssemblyFor = 'for' ( AssemblyBlock | FunctionalAssemblyExpression)
@@ -965,8 +1006,8 @@ that modifies the stack and with every label that is annotated with a stack
 adjustment. Every time a new
 local variable is introduced, it is registered together with the current
 stack height. If a variable is accessed (either for copying its value or for
-assignment), the appropriate DUP or SWAP instruction is selected depending
-on the difference bitween the current stack height and the
+assignment), the appropriate ``DUP`` or ``SWAP`` instruction is selected depending
+on the difference between the current stack height and the
 stack height at the point the variable was introduced.
 
 Pseudocode::

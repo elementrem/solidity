@@ -14,12 +14,12 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
-
-
-
-
-
-
+/**
+ * @file ControlFlowGraph.h
+ * @author Christian <c@ethdev.com>
+ * @date 2015
+ * Control flow analysis for the optimizer.
+ */
 
 #pragma once
 

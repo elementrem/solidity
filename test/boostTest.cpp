@@ -14,17 +14,15 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+/** @file boostTest.cpp
+ * @author Marko Simovic <markobarko@gmail.com>
+ * @date 2014
+ * Stub for generating main boost.test module.
+ * Original code taken from boost sources.
+ */
 
-
-
-
-
-
-
-#define BOOST_TEST_MODULE ElementremTests
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-parameter"
-
 
 #if defined(_MSC_VER)
 #pragma warning(push)
@@ -36,3 +34,44 @@
 #endif
 
 #pragma GCC diagnostic pop
+
+#include <test/TestHelper.h>
+
+using namespace boost::unit_test;
+
+namespace
+{
+void removeTestSuite(std::string const& _name)
+{
+	master_test_suite_t& master = framework::master_test_suite();
+	auto id = master.get(_name);
+	assert(id != INV_TEST_UNIT_ID);
+	master.remove(id);
+}
+}
+
+test_suite* init_unit_test_suite( int /*argc*/, char* /*argv*/[] )
+{
+	master_test_suite_t& master = framework::master_test_suite();
+	master.p_name.value = "SolidityTests";
+	if (dev::test::Options::get().disableIPC)
+	{
+		for (auto suite: {
+			"ABIEncoderTest",
+			"SolidityAuctionRegistrar",
+			"SolidityFixedFeeRegistrar",
+			"SolidityWallet",
+			"LLLERC20",
+			"LLLENS",
+			"LLLEndToEndTest",
+			"GasMeterTests",
+			"SolidityEndToEndTest",
+			"SolidityOptimizer"
+		})
+			removeTestSuite(suite);
+	}
+	if (dev::test::Options::get().disableSMT)
+		removeTestSuite("SMTChecker");
+
+	return 0;
+}

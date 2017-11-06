@@ -12,18 +12,18 @@ In particular, we need help in the following areas:
 
 * Improving the documentation
 * Responding to questions from other users on `StackExchange
-  <http://elementrem.stackexchange.com/>`_ and the `Solidity Gitter
-  <https://gitter.im/elementrem/solidity>`_
+  <https://ethereum.stackexchange.com>`_ and the `Solidity Gitter
+  <https://gitter.im/ethereum/solidity>`_
 * Fixing and responding to `Solidity's GitHub issues
-  <https://github.com/elementrem/solidity/issues>`_, especially those tagged as
-  `up-for-grabs <https://github.com/elementrem/solidity/issues?q=is%3Aopen+is%3Aissue+label%3Aup-for-grabs>`_ which are
+  <https://github.com/ethereum/solidity/issues>`_, especially those tagged as
+  `up-for-grabs <https://github.com/ethereum/solidity/issues?q=is%3Aopen+is%3Aissue+label%3Aup-for-grabs>`_ which are
   meant as introductory issues for external contributors.
 
 How to Report Issues
 ====================
 
 To report an issue, please use the
-`GitHub issues tracker <https://github.com/elementrem/solidity/issues>`_. When
+`GitHub issues tracker <https://github.com/ethereum/solidity/issues>`_. When
 reporting issues, please mention the following details:
 
 * Which version of Solidity you are using
@@ -54,7 +54,7 @@ However, if you are making a larger change, please consult with the Gitter
 channel, first.
 
 Finally, please make sure you respect the `coding standards
-<https://raw.githubusercontent.com/elementrem/cpp-elementrem/develop/CodingStandards.txt>`_
+<https://raw.githubusercontent.com/ethereum/cpp-ethereum/develop/CodingStandards.txt>`_
 for this project. Also, even though we do CI testing, please test your code and
 ensure that it builds locally before submitting a pull request.
 
@@ -64,13 +64,39 @@ Running the compiler tests
 ==========================
 
 Solidity includes different types of tests. They are included in the application
-called ``soltest``. Some of them require the ``cpp-elementrem`` client in testing mode.
+called ``soltest``. Some of them require the ``cpp-ethereum`` client in testing mode,
+some others require ``libz3`` to be installed.
 
-To run ``cpp-elementrem`` in testing mode: ``ele --test -d /tmp/testele``.
+To disable the z3 tests, use ``./build/test/soltest -- --no-smt`` and
+to run a subset of the tests that do not require ``cpp-ethereum``, use ``./build/test/soltest -- --no-ipc``.
 
-To run the tests: ``soltest -- --ipcpath /tmp/testele/gele.ipc``.
+For all other tests, you need to install `cpp-ethereum <https://github.com/ethereum/cpp-ethereum/releases/download/solidityTester/eth>`_ and run it in testing mode: ``eth --test -d /tmp/testeth``.
+
+Then you run the actual tests: ``./build/test/soltest -- --ipcpath /tmp/testeth/gele.ipc``.
 
 To run a subset of tests, filters can be used:
-``soltest -t TestSuite/TestName -- --ipcpath /tmp/testele/gele.ipc``, where ``TestName`` can be a wildcard ``*``.
+``soltest -t TestSuite/TestName -- --ipcpath /tmp/testeth/gele.ipc``, where ``TestName`` can be a wildcard ``*``.
 
-Alternatively, there is a testing script at ``scripts/test.sh`` which executes all tests.
+Alternatively, there is a testing script at ``scripts/test.sh`` which executes all tests and runs
+``cpp-ethereum`` automatically if it is in the path (but does not download it).
+
+Travis CI even runs some additional tests (including ``solc-js`` and testing third party Solidity frameworks) that require compiling the Emscripten target.
+
+Whiskers
+========
+
+*Whiskers* is a templating system similar to `Mustache <https://mustache.github.io>`_. It is used by the
+compiler in various places to aid readability, and thus maintainability and verifiability, of the code.
+
+The syntax comes with a substantial difference to Mustache: the template markers ``{{`` and ``}}`` are
+replaced by ``<`` and ``>`` in order to aid parsing and avoid conflicts with :ref:`inline-assembly`
+(The symbols ``<`` and ``>`` are invalid in inline assembly, while ``{`` and ``}`` are used to delimit blocks).
+Another limitation is that lists are only resolved one depth and they will not recurse. This may change in the future.
+
+A rough specification is the following:
+
+Any occurrence of ``<name>`` is replaced by the string-value of the supplied variable ``name`` without any
+escaping and without iterated replacements. An area can be delimited by ``<#name>...</name>``. It is replaced
+by as many concatenations of its contents as there were sets of variables supplied to the template system,
+each time replacing any ``<inner>`` items by their respective value. Top-level variables can also be used
+inside such areas.

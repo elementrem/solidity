@@ -14,11 +14,11 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
-
-
-
-
-
+/**
+ * @author Christian <chris@ethereum.org>
+ * @date 2016
+ * Unit tests for the semantic versioning matcher.
+ */
 
 #include <string>
 #include <vector>

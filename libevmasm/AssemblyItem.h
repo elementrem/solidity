@@ -14,9 +14,10 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
-
-
-
+/** @file AssemblyItem.h
+ * @author Gav Wood <i@gavwood.com>
+ * @date 2014
+ */
 
 #pragma once
 
@@ -146,6 +147,14 @@ private:
 };
 
 using AssemblyItems = std::vector<AssemblyItem>;
+
+inline size_t bytesRequired(AssemblyItems const& _items, size_t _addressLength)
+{
+	size_t size = 0;
+	for (AssemblyItem const& item: _items)
+		size += item.bytesRequired(_addressLength);
+	return size;
+}
 
 std::ostream& operator<<(std::ostream& _out, AssemblyItem const& _item);
 inline std::ostream& operator<<(std::ostream& _out, AssemblyItems const& _items)

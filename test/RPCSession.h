@@ -14,14 +14,13 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
-
-
-
-
+/** @file RPCSession.h
+ * @author Dimtiry Khokhlov <dimitry@ethdev.com>
+ * @date 2016
+ */
 
 #if defined(_WIN32)
 #include <windows.h>
-#include "libdevcore/UndefMacros.h"
 #else
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -41,7 +40,7 @@
 class IPCSocket : public boost::noncopyable
 {
 public:
-	IPCSocket(std::string const& _path);
+	explicit IPCSocket(std::string const& _path);
 	std::string sendRequest(std::string const& _req);
 	~IPCSocket() { CloseHandle(m_socket); }
 
@@ -56,7 +55,7 @@ private:
 class IPCSocket: public boost::noncopyable
 {
 public:
-	IPCSocket(std::string const& _path);
+	explicit IPCSocket(std::string const& _path);
 	std::string sendRequest(std::string const& _req);
 	~IPCSocket() { close(m_socket); }
 
@@ -68,7 +67,7 @@ private:
 	int m_socket;
 	/// Socket read timeout in milliseconds. Needs to be large because the key generation routine
 	/// might take long.
-	unsigned static constexpr m_readTimeOutMS = 15000;
+	unsigned static constexpr m_readTimeOutMS = 300000;
 	char m_readBuf[512000];
 };
 #endif
@@ -108,7 +107,7 @@ public:
 	Json::Value ele_getBlockByNumber(std::string const& _blockNumber, bool _fullObjects);
 	std::string ele_call(TransactionData const& _td, std::string const& _blockNumber);
 	TransactionReceipt ele_getTransactionReceipt(std::string const& _transactionHash);
-	std::string ele_sendTransaction(TransactionData const& _transactionData);
+	std::string ele_sendTransaction(TransactionData const& _td);
 	std::string ele_sendTransaction(std::string const& _transaction);
 	std::string ele_getBalance(std::string const& _address, std::string const& _blockNumber);
 	std::string ele_getStorageRoot(std::string const& _address, std::string const& _blockNumber);
@@ -125,7 +124,7 @@ public:
 	std::string const& accountCreateIfNotExists(size_t _id);
 
 private:
-	RPCSession(std::string const& _path);
+	explicit RPCSession(std::string const& _path);
 
 	inline std::string quote(std::string const& _arg) { return "\"" + _arg + "\""; }
 	/// Parse std::string replacing keywords to values
@@ -133,7 +132,7 @@ private:
 
 	IPCSocket m_ipcSocket;
 	size_t m_rpcSequence = 1;
-	unsigned m_maxMiningTime = 15000; // 15 seconds
+	unsigned m_maxMiningTime = 6000000; // 600 seconds
 	unsigned m_sleepTime = 10; // 10 milliseconds
 	unsigned m_successfulMineRuns = 0;
 

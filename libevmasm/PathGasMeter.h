@@ -14,10 +14,10 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
-
-
-
-
+/** @file PathGasMeter.cpp
+ * @author Christian <c@ethdev.com>
+ * @date 2015
+ */
 
 #pragma once
 
@@ -50,7 +50,7 @@ struct GasPath
 class PathGasMeter
 {
 public:
-	PathGasMeter(AssemblyItems const& _items);
+	explicit PathGasMeter(AssemblyItems const& _items);
 
 	GasMeter::GasConsumption estimateMax(size_t _startIndex, std::shared_ptr<KnownState> const& _state);
 

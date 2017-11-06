@@ -22,6 +22,12 @@
 
 #include <libsolidity/interface/Exceptions.h>
 
+#include <libsolidity/inlineasm/AsmScope.h>
+
+#include <libjulia/backends/evm/AbstractAssembly.h>
+
+#include <libsolidity/inlineasm/AsmDataForward.h>
+
 #include <boost/variant.hpp>
 
 #include <functional>
@@ -31,126 +37,65 @@ namespace dev
 {
 namespace solidity
 {
+class ErrorReporter;
 namespace assembly
 {
 
-struct Literal;
-struct Block;
-struct Label;
-struct FunctionalInstruction;
-struct FunctionalAssignment;
-struct VariableDeclaration;
-struct Instruction;
-struct Identifier;
-struct Assignment;
-struct FunctionDefinition;
-struct FunctionCall;
+struct AsmAnalysisInfo;
 
-template <class...>
-struct GenericVisitor{};
-
-template <class Visitable, class... Others>
-struct GenericVisitor<Visitable, Others...>: public GenericVisitor<Others...>
-{
-	using GenericVisitor<Others...>::operator ();
-	explicit GenericVisitor(
-		std::function<void(Visitable&)> _visitor,
-		std::function<void(Others&)>... _otherVisitors
-	):
-		GenericVisitor<Others...>(_otherVisitors...),
-		m_visitor(_visitor)
-	{}
-
-	void operator()(Visitable& _v) const { m_visitor(_v); }
-
-	std::function<void(Visitable&)> m_visitor;
-};
-template <>
-struct GenericVisitor<>: public boost::static_visitor<> {
-	void operator()() const {}
-};
-
-
-struct Scope
-{
-	struct Variable
-	{
-		int stackHeight = 0;
-		bool active = false;
-	};
-
-	struct Label
-	{
-		size_t id = unassignedLabelId;
-		static const size_t errorLabelId = -1;
-		static const size_t unassignedLabelId = 0;
-	};
-
-	struct Function
-	{
-		Function(size_t _arguments, size_t _returns): arguments(_arguments), returns(_returns) {}
-		size_t arguments = 0;
-		size_t returns = 0;
-	};
-
-	using Identifier = boost::variant<Variable, Label, Function>;
-	using Visitor = GenericVisitor<Variable const, Label const, Function const>;
-	using NonconstVisitor = GenericVisitor<Variable, Label, Function>;
-
-	bool registerVariable(std::string const& _name);
-	bool registerLabel(std::string const& _name);
-	bool registerFunction(std::string const& _name, size_t _arguments, size_t _returns);
-
-	/// Looks up the identifier in this or super scopes (stops and function and assembly boundaries)
-	/// and returns a valid pointer if found or a nullptr if not found.
-	/// The pointer will be invalidated if the scope is modified.
-	Identifier* lookup(std::string const& _name);
-	/// Looks up the identifier in this and super scopes (stops and function and assembly boundaries)
-	/// and calls the visitor, returns false if not found.
-	template <class V>
-	bool lookup(std::string const& _name, V const& _visitor)
-	{
-		if (Identifier* id = lookup(_name))
-		{
-			boost::apply_visitor(_visitor, *id);
-			return true;
-		}
-		else
-			return false;
-	}
-	/// @returns true if the name exists in this scope or in super scopes (also searches
-	/// across function and assembly boundaries).
-	bool exists(std::string const& _name);
-	Scope* superScope = nullptr;
-	/// If true, identifiers from the super scope are not visible here, but they are still
-	/// taken into account to prevent shadowing.
-	bool closedScope = false;
-	std::map<std::string, Identifier> identifiers;
-};
-
-
+/**
+ * Performs the full analysis stage, calls the ScopeFiller internally, then resolves
+ * references and performs other checks.
+ * If all these checks pass, code generation should not throw errors.
+ */
 class AsmAnalyzer: public boost::static_visitor<bool>
 {
 public:
-	using Scopes = std::map<assembly::Block const*, std::shared_ptr<Scope>>;
-	AsmAnalyzer(Scopes& _scopes, ErrorList& _errors);
+	explicit AsmAnalyzer(
+		AsmAnalysisInfo& _analysisInfo,
+		ErrorReporter& _errorReporter,
+		bool _julia = false,
+		julia::ExternalIdentifierAccess::Resolver const& _resolver = julia::ExternalIdentifierAccess::Resolver()
+	): m_resolver(_resolver), m_info(_analysisInfo), m_errorReporter(_errorReporter), m_julia(_julia) {}
 
-	bool operator()(assembly::Instruction const&) { return true; }
+	bool analyze(assembly::Block const& _block);
+
+	bool operator()(assembly::Instruction const&);
 	bool operator()(assembly::Literal const& _literal);
-	bool operator()(assembly::Identifier const&) { return true; }
+	bool operator()(assembly::Identifier const&);
 	bool operator()(assembly::FunctionalInstruction const& _functionalInstruction);
 	bool operator()(assembly::Label const& _label);
-	bool operator()(assembly::Assignment const&) { return true; }
-	bool operator()(assembly::FunctionalAssignment const& _functionalAssignment);
+	bool operator()(assembly::StackAssignment const&);
+	bool operator()(assembly::Assignment const& _assignment);
 	bool operator()(assembly::VariableDeclaration const& _variableDeclaration);
 	bool operator()(assembly::FunctionDefinition const& _functionDefinition);
 	bool operator()(assembly::FunctionCall const& _functionCall);
+	bool operator()(assembly::Switch const& _switch);
+	bool operator()(assembly::ForLoop const& _forLoop);
 	bool operator()(assembly::Block const& _block);
 
 private:
+	/// Visits the statement and expects it to deposit one item onto the stack.
+	bool expectExpression(Statement const& _statement);
+	bool expectDeposit(int _deposit, int _oldHeight, SourceLocation const& _location);
+
+	/// Verifies that a variable to be assigned to exists and has the same size
+	/// as the value, @a _valueSize, unless that is equal to -1.
+	bool checkAssignment(assembly::Identifier const& _assignment, size_t _valueSize = size_t(-1));
+
+	Scope& scope(assembly::Block const* _block);
+	void expectValidType(std::string const& type, SourceLocation const& _location);
+	void warnOnInstructions(solidity::Instruction _instr, SourceLocation const& _location);
+
+	int m_stackHeight = 0;
+	julia::ExternalIdentifierAccess::Resolver m_resolver;
 	Scope* m_currentScope = nullptr;
-	Scopes& m_scopes;
-	ErrorList& m_errors;
+	/// Variables that are active at the current point in assembly (as opposed to
+	/// "part of the scope but not yet declared")
+	std::set<Scope::Variable const*> m_activeVariables;
+	AsmAnalysisInfo& m_info;
+	ErrorReporter& m_errorReporter;
+	bool m_julia = false;
 };
 
 }

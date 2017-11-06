@@ -14,17 +14,17 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
-
-
-
-
-
+/**
+ * @author Christian <c@ethdev.com>
+ * @date 2015
+ * Versioning.
+ */
 
 #include <libsolidity/interface/Version.h>
 #include <string>
 #include <libdevcore/CommonData.h>
 #include <libdevcore/Common.h>
-#include <libsolidity/interface/Utils.h>
+#include <libsolidity/interface/Exceptions.h>
 #include <solidity/BuildInfo.h>
 
 using namespace dev;

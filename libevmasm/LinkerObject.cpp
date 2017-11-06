@@ -14,10 +14,10 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
-
-
-
-
+/** @file LinkerObject.cpp
+ * @author Christian R <c@ethdev.com>
+ * @date 2015
+ */
 
 #include <libevmasm/LinkerObject.h>
 #include <libdevcore/CommonData.h>
@@ -38,7 +38,7 @@ void LinkerObject::link(map<string, h160> const& _libraryAddresses)
 	std::map<size_t, std::string> remainingRefs;
 	for (auto const& linkRef: linkReferences)
 		if (h160 const* address = matchLibrary(linkRef.second, _libraryAddresses))
-			address->ref().copyTo(ref(bytecode).cropped(linkRef.first, 20));
+			copy(address->data(), address->data() + 20, bytecode.begin() + linkRef.first);
 		else
 			remainingRefs.insert(linkRef);
 	linkReferences.swap(remainingRefs);

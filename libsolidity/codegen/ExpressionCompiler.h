@@ -14,12 +14,12 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
-
-
-
-
-
-
+/**
+ * @author Christian <c@ethdev.com>
+ * @author Gav Wood <g@ethdev.com>
+ * @date 2014
+ * Solidity AST to EVM bytecode compiler for expressions.
+ */
 
 #include <functional>
 #include <memory>
@@ -28,7 +28,7 @@
 #include <libevmasm/SourceLocation.h>
 #include <libsolidity/ast/ASTVisitor.h>
 #include <libsolidity/codegen/LValue.h>
-#include <libsolidity/interface/Utils.h>
+#include <libsolidity/interface/Exceptions.h>
 
 namespace dev {
 namespace ele
@@ -119,7 +119,7 @@ private:
 
 	/// @returns true if the operator applied to the given type requires a cleanup prior to the
 	/// operation.
-	bool cleanupNeededForOp(Type::Category _type, Token::Value _op);
+	static bool cleanupNeededForOp(Type::Category _type, Token::Value _op);
 
 	/// @returns the CompilerUtils object containing the current context.
 	CompilerUtils utils();

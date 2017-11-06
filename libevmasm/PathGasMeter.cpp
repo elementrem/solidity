@@ -14,10 +14,10 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
-
-
-
-
+/** @file PathGasMeter.cpp
+ * @author Christian <c@ethdev.com>
+ * @date 2015
+ */
 
 #include "PathGasMeter.h"
 #include <libevmasm/KnownState.h>

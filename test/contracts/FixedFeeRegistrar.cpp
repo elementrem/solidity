@@ -14,11 +14,11 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
-
-
-
-
-
+/**
+ * @author Christian <c@ethdev.com>
+ * @date 2015
+ * Tests for a fixed fee registrar contract.
+ */
 
 #include <string>
 #include <tuple>
@@ -48,10 +48,10 @@ namespace
 {
 
 static char const* registrarCode = R"DELIMITER(
-
-
-
-
+//sol FixedFeeRegistrar
+// Simple global registrar with fixed-fee reservations.
+// @authors:
+//   Gav Wood <g@ethdev.com>
 
 pragma solidity ^0.4.0;
 
@@ -82,7 +82,7 @@ contract FixedFeeRegistrar is Registrar {
 		}
 	}
 	function disown(string _name, address _refund) onlyrecordowner(_name) {
-		delete m_recordData[uint(sha3(_name)) / 8];
+		delete m_recordData[uint(keccak256(_name)) / 8];
 		if (!_refund.send(c_fee))
 			throw;
 		Changed(_name);
@@ -118,7 +118,7 @@ contract FixedFeeRegistrar is Registrar {
 
 	Record[2**253] m_recordData;
 	function m_record(string _name) constant internal returns (Record storage o_record) {
-		return m_recordData[uint(sha3(_name)) / 8];
+		return m_recordData[uint(keccak256(_name)) / 8];
 	}
 	uint constant c_fee = 69 element;
 }
@@ -135,7 +135,8 @@ protected:
 		{
 			m_compiler.reset(false);
 			m_compiler.addSource("", registrarCode);
-			ELE_TEST_REQUIRE_NO_THROW(m_compiler.compile(m_optimize, m_optimizeRuns), "Compiling contract failed");
+			m_compiler.setOptimiserSettings(m_optimize, m_optimizeRuns);
+			BOOST_REQUIRE_MESSAGE(m_compiler.compile(), "Compiling contract failed");
 			s_compiledRegistrar.reset(new bytes(m_compiler.object("FixedFeeRegistrar").bytecode));
 		}
 		sendMessage(*s_compiledRegistrar, true);

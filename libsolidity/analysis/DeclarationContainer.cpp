@@ -14,11 +14,11 @@
     You should have received a copy of the GNU General Public License
     along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
-
-
-
-
-
+/**
+ * @author Christian <c@ethdev.com>
+ * @date 2014
+ * Scope - object that holds declaration of names.
+ */
 
 #include <libsolidity/analysis/DeclarationContainer.h>
 #include <libsolidity/ast/AST.h>

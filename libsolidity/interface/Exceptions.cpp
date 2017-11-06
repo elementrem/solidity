@@ -14,14 +14,13 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
-
-
-
-
-
+/**
+ * @author Liana <liana@ethdev.com>
+ * @date 2015
+ * Solidity exception hierarchy.
+ */
 
 #include <libsolidity/interface/Exceptions.h>
-#include <libsolidity/interface/Utils.h>
 
 using namespace std;
 using namespace dev;
@@ -33,22 +32,19 @@ Error::Error(Type _type, SourceLocation const& _location, string const& _descrip
 	switch(m_type)
 	{
 	case Type::DeclarationError:
-		m_typeName = "Declaration Error";
+		m_typeName = "DeclarationError";
 		break;
 	case Type::DocstringParsingError:
-		m_typeName = "Docstring Parsing Error";
+		m_typeName = "DocstringParsingError";
 		break;
 	case Type::ParserError:
-		m_typeName = "Parser Error";
+		m_typeName = "ParserError";
 		break;
 	case Type::SyntaxError:
-		m_typeName = "Syntax Error";
+		m_typeName = "SyntaxError";
 		break;
 	case Type::TypeError:
-		m_typeName = "Type Error";
-		break;
-	case Type::Why3TranslatorError:
-		m_typeName = "Why3 Translator Error";
+		m_typeName = "TypeError";
 		break;
 	case Type::Warning:
 		m_typeName = "Warning";
@@ -70,17 +66,4 @@ Error::Error(Error::Type _type, const std::string& _description, const SourceLoc
 	if (!_location.isEmpty())
 		*this << errinfo_sourceLocation(_location);
 	*this << errinfo_comment(_description);
-}
-
-string Exception::lineInfo() const
-{
-	char const* const* file = boost::get_error_info<boost::throw_file>(*this);
-	int const* line = boost::get_error_info<boost::throw_line>(*this);
-	string ret;
-	if (file)
-		ret += *file;
-	ret += ':';
-	if (line)
-		ret += boost::lexical_cast<string>(*line);
-	return ret;
 }

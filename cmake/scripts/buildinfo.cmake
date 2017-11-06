@@ -7,7 +7,7 @@
 # ELE_BUILD_PLATFORM
 #
 # example usage:
-# cmake -DELE_SOURCE_DIR=. -DELE_DST_DIR=build -DELE_BUILD_TYPE=Debug -DELE_BUILD_PLATFORM=Darwin.appleclang -P scripts/buildinfo.cmake
+# cmake -DETH_SOURCE_DIR=. -DETH_DST_DIR=build -DETH_BUILD_TYPE=Debug -DETH_BUILD_PLATFORM=Darwin.appleclang -P scripts/buildinfo.cmake
 #
 # Its main output variables are SOL_VERSION_BUILDINFO and SOL_VERSION_PRERELEASE
 

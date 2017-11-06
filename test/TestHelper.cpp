@@ -14,10 +14,10 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
-
-
-
-
+/** @file TestHelper.h
+* @author Marko Simovic <markobarko@gmail.com>
+* @date 2014
+*/
 
 #include <boost/test/framework.hpp>
 #include "TestHelper.h"
@@ -43,8 +43,12 @@ Options::Options()
 			optimize = true;
 		else if (string(suite.argv[i]) == "--show-messages")
 			showMessages = true;
+		else if (string(suite.argv[i]) == "--no-ipc")
+			disableIPC = true;
+		else if (string(suite.argv[i]) == "--no-smt")
+			disableSMT = true;
 
-	if (ipcPath.empty())
+	if (!disableIPC && ipcPath.empty())
 		if (auto path = getenv("ELE_TEST_IPC"))
 			ipcPath = path;
 }

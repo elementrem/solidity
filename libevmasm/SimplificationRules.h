@@ -14,12 +14,12 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
-
-
-
-
-
-
+/**
+ * @file SimplificationRules
+ * @author Christian <chris@ethereum.org>
+ * @date 2017
+ * Module for applying replacement rules against Expressions.
+ */
 
 #pragma once
 

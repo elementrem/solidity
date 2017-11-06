@@ -14,12 +14,12 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
-
-
-
-
-
-
+/** @file CommonIO.h
+ * @author Gav Wood <i@gavwood.com>
+ * @date 2014
+ *
+ * File & stream I/O routines.
+ */
 
 #pragma once
 

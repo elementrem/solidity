@@ -14,14 +14,13 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
-
-
-
-
-
+/**
+ * @author Christian <c@ethdev.com>
+ * @date 2015
+ * Unit tests for the gas estimator.
+ */
 
 #include <test/libsolidity/SolidityExecutionFramework.h>
-#include <libevmasm/EVMSchedule.h>
 #include <libevmasm/GasMeter.h>
 #include <libevmasm/KnownState.h>
 #include <libevmasm/PathGasMeter.h>
@@ -47,8 +46,10 @@ public:
 	GasMeterTestFramework() { }
 	void compile(string const& _sourceCode)
 	{
-		m_compiler.setSource("pragma solidity >= 0.0;" + _sourceCode);
-		ELE_TEST_REQUIRE_NO_THROW(m_compiler.compile(), "Compiling contract failed");
+		m_compiler.reset(false);
+		m_compiler.addSource("", "pragma solidity >=0.0;\n" + _sourceCode);
+		m_compiler.setOptimiserSettings(dev::test::Options::get().optimize);
+		BOOST_REQUIRE_MESSAGE(m_compiler.compile(), "Compiling contract failed");
 
 		AssemblyItems const* items = m_compiler.runtimeAssemblyItems("");
 		ASTNode const& sourceUnit = m_compiler.ast();
@@ -61,15 +62,13 @@ public:
 
 	void testCreationTimeGas(string const& _sourceCode)
 	{
-		EVMSchedule schedule;
-
 		compileAndRun(_sourceCode);
 		auto state = make_shared<KnownState>();
 		PathGasMeter meter(*m_compiler.assemblyItems());
 		GasMeter::GasConsumption gas = meter.estimateMax(0, state);
 		u256 bytecodeSize(m_compiler.runtimeObject().bytecode.size());
 		// costs for deployment
-		gas += bytecodeSize * schedule.createDataGas;
+		gas += bytecodeSize * GasCosts::createDataGas;
 		// costs for transaction
 		gas += gasForTransaction(m_compiler.object().bytecode, true);
 
@@ -101,10 +100,9 @@ public:
 
 	static GasMeter::GasConsumption gasForTransaction(bytes const& _data, bool _isCreation)
 	{
-		EVMSchedule schedule;
-		GasMeter::GasConsumption gas = _isCreation ? schedule.txCreateGas : schedule.txGas;
+		GasMeter::GasConsumption gas = _isCreation ? GasCosts::txCreateGas : GasCosts::txGas;
 		for (auto i: _data)
-			gas += i != 0 ? schedule.txDataNonZeroGas : schedule.txDataZeroGas;
+			gas += i != 0 ? GasCosts::txDataNonZeroGas : GasCosts::txDataZeroGas;
 		return gas;
 	}
 
@@ -151,20 +149,20 @@ BOOST_AUTO_TEST_CASE(simple_contract)
 		contract test {
 			bytes32 public shaValue;
 			function f(uint a) {
-				shaValue = sha3(a);
+				shaValue = keccak256(a);
 			}
 		}
 	)";
 	testCreationTimeGas(sourceCode);
 }
 
-BOOST_AUTO_TEST_CASE(store_sha3)
+BOOST_AUTO_TEST_CASE(store_keccak256)
 {
 	char const* sourceCode = R"(
 		contract test {
 			bytes32 public shaValue;
 			function test(uint a) {
-				shaValue = sha3(a);
+				shaValue = keccak256(a);
 			}
 		}
 	)";
@@ -246,6 +244,51 @@ BOOST_AUTO_TEST_CASE(multiple_external_functions)
 	testCreationTimeGas(sourceCode);
 	testRunTimeGas("f(uint256)", vector<bytes>{encodeArgs(2), encodeArgs(8)});
 	testRunTimeGas("g(uint256)", vector<bytes>{encodeArgs(2)});
+}
+
+BOOST_AUTO_TEST_CASE(exponent_size)
+{
+	char const* sourceCode = R"(
+		contract A {
+			function g(uint x) returns (uint) {
+				return x ** 0x100;
+			}
+			function h(uint x) returns (uint) {
+				return x ** 0x10000;
+			}
+		}
+	)";
+	testCreationTimeGas(sourceCode);
+	testRunTimeGas("g(uint256)", vector<bytes>{encodeArgs(2)});
+	testRunTimeGas("h(uint256)", vector<bytes>{encodeArgs(2)});
+}
+
+BOOST_AUTO_TEST_CASE(balance_gas)
+{
+	char const* sourceCode = R"(
+		contract A {
+			function lookup_balance(address a) returns (uint) {
+				return a.balance;
+			}
+		}
+	)";
+	testCreationTimeGas(sourceCode);
+	testRunTimeGas("lookup_balance(address)", vector<bytes>{encodeArgs(2), encodeArgs(100)});
+}
+
+BOOST_AUTO_TEST_CASE(extcodesize_gas)
+{
+	char const* sourceCode = R"(
+		contract A {
+			function f() returns (uint _s) {
+				assembly {
+					_s := extcodesize(0x30)
+				}
+			}
+		}
+	)";
+	testCreationTimeGas(sourceCode);
+	testRunTimeGas("f()", vector<bytes>{encodeArgs()});
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -14,12 +14,12 @@
     You should have received a copy of the GNU General Public License
     along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
-
-
-
-
-
-
+/**
+ * @author Christian <c@ethdev.com>
+ * @date 2014
+ * Implementation of the accept functions of AST nodes, included by AST.cpp to not clutter that
+ * file with these mechanical implementations.
+ */
 
 #pragma once
 
@@ -288,18 +288,6 @@ void EventDefinition::accept(ASTConstVisitor& _visitor) const
 {
 	if (_visitor.visit(*this))
 		m_parameters->accept(_visitor);
-	_visitor.endVisit(*this);
-}
-
-void TypeName::accept(ASTVisitor& _visitor)
-{
-	_visitor.visit(*this);
-	_visitor.endVisit(*this);
-}
-
-void TypeName::accept(ASTConstVisitor& _visitor) const
-{
-	_visitor.visit(*this);
 	_visitor.endVisit(*this);
 }
 

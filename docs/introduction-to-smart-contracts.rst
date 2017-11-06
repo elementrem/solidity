@@ -33,27 +33,37 @@ Storage
 The first line simply tells that the source code is written for
 Solidity version 0.4.0 or anything newer that does not break functionality
 (up to, but not including, version 0.5.0). This is to ensure that the
-contract does not suddenly behave differently with a new compiler version.
+contract does not suddenly behave differently with a new compiler version. The keyword ``pragma`` is called that way because, in general,
+pragmas are instructions for the compiler about how to treat the
+source code (e.g. `pragma once <https://en.wikipedia.org/wiki/Pragma_once>`_).
 
-A contract in the sense of Solidity is a collection of code (its functions) and
-data (its *state*) that resides at a specific address on the Elementrem
+A contract in the sense of Solidity is a collection of code (its *functions*) and
+data (its *state*) that resides at a specific address on the Ethereum
 blockchain. The line ``uint storedData;`` declares a state variable called ``storedData`` of
 type ``uint`` (unsigned integer of 256 bits). You can think of it as a single slot
 in a database that can be queried and altered by calling functions of the
-code that manages the database. In the case of Elementrem, this is always the owning
+code that manages the database. In the case of Ethereum, this is always the owning
 contract. And in this case, the functions ``set`` and ``get`` can be used to modify
 or retrieve the value of the variable.
 
 To access a state variable, you do not need the prefix ``this.`` as is common in
 other languages.
 
-This contract does not yet do much apart from (due to the infrastructure
-built by Elementrem) allowing anyone to store a single number that is accessible by
-anyone in the world without (feasible) a way to prevent you from publishing
+This contract does not do much yet (due to the infrastructure
+built by Ethereum) apart from allowing anyone to store a single number that is accessible by
+anyone in the world without a (feasible) way to prevent you from publishing
 this number. Of course, anyone could just call ``set`` again with a different value
 and overwrite your number, but the number will still be stored in the history
 of the blockchain. Later, we will see how you can impose access restrictions
 so that only you can alter the number.
+
+.. note::
+    All identifiers (contract names, function names and variable names) are restricted to
+    the ASCII character set. It is possible to store UTF-8 encoded data in string variables.
+
+.. warning::
+    Be careful with using Unicode text as similarly looking (or even identical) characters can
+    have different code points and as such will be encoded as a different byte array.
 
 .. index:: ! subcurrency
 
@@ -65,7 +75,7 @@ cryptocurrency. It is possible to generate coins out of thin air, but
 only the person that created the contract will be able to do that (it is trivial
 to implement a different issuance scheme).
 Furthermore, anyone can send coins to each other without any need for
-registering with username and password - all you need is an Elementrem keypair.
+registering with username and password - all you need is an Ethereum keypair.
 
 
 ::
@@ -124,14 +134,14 @@ get the idea - the compiler figures that out for you.
 The next line, ``mapping (address => uint) public balances;`` also
 creates a public state variable, but it is a more complex datatype.
 The type maps addresses to unsigned integers.
-Mappings can be seen as hashtables which are
+Mappings can be seen as `hash tables <https://en.wikipedia.org/wiki/Hash_table>`_ which are
 virtually initialized such that every possible key exists and is mapped to a
 value whose byte-representation is all zeros. This analogy does not go
 too far, though, as it is neither possible to obtain a list of all keys of
 a mapping, nor a list of all values. So either keep in mind (or
 better, keep a list or use a more advanced data type) what you
 added to the mapping or use it in a context where this is not needed,
-like this one. The getter function created by the ``public`` keyword
+like this one. The :ref:`getter function<getter-functions>` created by the ``public`` keyword
 is a bit more complex in this case. It roughly looks like the
 following::
 
@@ -146,7 +156,7 @@ single account.
 
 The line ``event Sent(address from, address to, uint amount);`` declares
 a so-called "event" which is fired in the last line of the function
-``send``. User interfaces (as well as server appliances of course) can
+``send``. User interfaces (as well as server applications of course) can
 listen for those events being fired on the blockchain without much
 cost. As soon as it is fired, the listener will also receive the
 arguments ``from``, ``to`` and ``amount``, which makes it easy to track
@@ -161,7 +171,7 @@ transactions. In order to listen for this event, you would use ::
                 "Sender: " + Coin.balances.call(result.args.from) +
                 "Receiver: " + Coin.balances.call(result.args.to));
         }
-    }
+    })
 
 Note how the automatically generated function ``balances`` is called from
 the user interface.
@@ -193,7 +203,7 @@ Blockchain Basics
 *****************
 
 Blockchains as a concept are not too hard to understand for programmers. The reason is that
-most of the complications (mining, hashing, elliptic-curve cryptography, peer-to-peer networks, ...)
+most of the complications (mining, `hashing <https://en.wikipedia.org/wiki/Cryptographic_hash_function>`_, `elliptic-curve cryptography <https://en.wikipedia.org/wiki/Elliptic_curve_cryptography>`_, `peer-to-peer networks <https://en.wikipedia.org/wiki/Peer-to-peer>`_, etc.)
 are just there to provide a certain set of features and promises. Once you accept these
 features as given, you do not have to worry about the underlying technology - or do you have
 to know how Amazon's AWS works internally in order to use it?
@@ -240,7 +250,7 @@ be rejected and not become part of the block.
 
 These blocks form a linear sequence in time and that is where the word "blockchain"
 derives from. Blocks are added to the chain in rather regular intervals - for
-Elementrem this is roughly every 17 seconds.
+Ethereum this is roughly every 17 seconds.
 
 As part of the "order selection mechanism" (which is called "mining") it may happen that
 blocks are reverted from time to time, but only at the "tip" of the chain. The more
@@ -249,19 +259,19 @@ are reverted and even removed from the blockchain, but the longer you wait, the 
 likely it will be.
 
 
-.. _the-elementrem-virtual-machine:
+.. _the-ethereum-virtual-machine:
 
-.. index:: !evm, ! elementrem virtual machine
+.. index:: !evm, ! ethereum virtual machine
 
 ****************************
-The Elementrem Virtual Machine
+The Ethereum Virtual Machine
 ****************************
 
 Overview
 ========
 
-The Elementrem Virtual Machine or EVM is the runtime environment
-for smart contracts in Elementrem. It is not only sandboxed but
+The Ethereum Virtual Machine or EVM is the runtime environment
+for smart contracts in Ethereum. It is not only sandboxed but
 actually completely isolated, which means that code running
 inside the EVM has no access to network, filesystem or other processes.
 Smart contracts even have limited access to other smart contracts.
@@ -271,7 +281,7 @@ Smart contracts even have limited access to other smart contracts.
 Accounts
 ========
 
-There are two kinds of accounts in Elementrem which share the same
+There are two kinds of accounts in Ethereum which share the same
 address space: **External accounts** that are controlled by
 public-private key pairs (i.e. humans) and **contract accounts** which are
 controlled by the code stored together with the account.
@@ -402,7 +412,7 @@ such situations, so that exceptions "bubble up" the call stack.
 As already said, the called contract (which can be the same as the caller)
 will receive a freshly cleared instance of memory and has access to the
 call payload - which will be provided in a separate area called the **calldata**.
-After it finished execution, it can return data which will be stored at
+After it has finished execution, it can return data which will be stored at
 a location in the caller's memory preallocated by the caller.
 
 Calls are **limited** to a depth of 1024, which means that for more complex
@@ -423,8 +433,8 @@ address at runtime. Storage, current address and balance still
 refer to the calling contract, only the code is taken from the called address.
 
 This makes it possible to implement the "library" feature in Solidity:
-Reusable library code that can be applied to a contract's storage in
-order to e.g. implement a complex data structure.
+Reusable library code that can be applied to a contract's storage, e.g. in
+order to  implement a complex data structure.
 
 .. index:: log
 
@@ -436,7 +446,7 @@ that maps all the way up to the block level. This feature called **logs**
 is used by Solidity in order to implement **events**.
 Contracts cannot access log data after it has been created, but they
 can be efficiently accessed from outside the blockchain.
-Since some part of the log data is stored in bloom filters, it is
+Since some part of the log data is stored in `bloom filters <https://en.wikipedia.org/wiki/Bloom_filter>`_, it is
 possible to search for this data in an efficient and cryptographically
 secure way, so network peers that do not download the whole blockchain
 ("light clients") can still find these logs.
@@ -465,7 +475,7 @@ target and then the storage and code is removed from the state.
 .. warning:: Even if a contract's code does not contain a call to ``selfdestruct``,
   it can still perform that operation using ``delegatecall`` or ``callcode``.
 
-.. note:: The pruning of old contracts may or may not be implemented by Elementrem
+.. note:: The pruning of old contracts may or may not be implemented by Ethereum
   clients. Additionally, archive nodes could choose to keep the contract storage
   and code indefinitely.
 

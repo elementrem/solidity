@@ -14,20 +14,22 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
-
-
-
-
-
-
+/**
+ * @file ExpressionClasses.h
+ * @author Christian <c@ethdev.com>
+ * @date 2015
+ * Container for equivalence classes of expressions for use in common subexpression elimination.
+ */
 
 #pragma once
+
+#include <libdevcore/Common.h>
+#include <libevmasm/AssemblyItem.h>
 
 #include <vector>
 #include <map>
 #include <memory>
-#include <libdevcore/Common.h>
-#include <libevmasm/AssemblyItem.h>
+#include <set>
 
 namespace dev
 {

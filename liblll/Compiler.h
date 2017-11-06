@@ -14,10 +14,10 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
-
-
-
-
+/** @file Compiler.h
+ * @author Gav Wood <i@gavwood.com>
+ * @date 2014
+ */
 
 #pragma once
 
@@ -30,9 +30,11 @@ namespace dev
 namespace ele
 {
 
+using ReadCallback = std::function<std::string(std::string const&)>;
+
 std::string parseLLL(std::string const& _src);
-std::string compileLLLToAsm(std::string const& _src, bool _opt = true, std::vector<std::string>* _errors = nullptr);
-bytes compileLLL(std::string const& _src, bool _opt = true, std::vector<std::string>* _errors = nullptr);
+std::string compileLLLToAsm(std::string const& _src, bool _opt = true, std::vector<std::string>* _errors = nullptr, ReadCallback const& _readFile = ReadCallback());
+bytes compileLLL(std::string const& _src, bool _opt = true, std::vector<std::string>* _errors = nullptr, ReadCallback const& _readFile = ReadCallback());
 
 }
 }

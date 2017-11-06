@@ -14,10 +14,10 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
-
-
-
-
+/** @file CommonData.cpp
+ * @author Gav Wood <i@gavwood.com>
+ * @date 2014
+ */
 
 #include <libdevcore/CommonData.h>
 #include <libdevcore/Exceptions.h>
@@ -27,34 +27,6 @@
 
 using namespace std;
 using namespace dev;
-
-std::string dev::escaped(std::string const& _s, bool _all)
-{
-	static const map<char, char> prettyEscapes{{'\r', 'r'}, {'\n', 'n'}, {'\t', 't'}, {'\v', 'v'}};
-	std::string ret;
-	ret.reserve(_s.size() + 2);
-	ret.push_back('"');
-	for (auto i: _s)
-		if (i == '"' && !_all)
-			ret += "\\\"";
-		else if (i == '\\' && !_all)
-			ret += "\\\\";
-		else if (prettyEscapes.count(i) && !_all)
-		{
-			ret += '\\';
-			ret += prettyEscapes.find(i)->second;
-		}
-		else if (i < ' ' || _all)
-		{
-			ret += "\\x";
-			ret.push_back("0123456789abcdef"[(uint8_t)i / 16]);
-			ret.push_back("0123456789abcdef"[(uint8_t)i % 16]);
-		}
-		else
-			ret.push_back(i);
-	ret.push_back('"');
-	return ret;
-}
 
 int dev::fromHex(char _i, WhenError _throw)
 {

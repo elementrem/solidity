@@ -7,6 +7,8 @@ and pragma directives.
 
 .. index:: ! pragma, version
 
+.. _version_pragma:
+
 Version Pragma
 ==============
 
@@ -24,14 +26,14 @@ The version pragma is used as follows::
   pragma solidity ^0.4.0;
 
 Such a source file will not compile with a compiler earlier than version 0.4.0
-and it will also not work on a compiler starting form version 0.5.0 (this
+and it will also not work on a compiler starting from version 0.5.0 (this
 second condition is added by using ``^``). The idea behind this is that
 there will be no breaking changes until version ``0.5.0``, so we can always
 be sure that our code will compile the way we intended it to. We do not fix
 the exact version of the compiler, so that bugfix releases are still possible.
 
 It is possible to specify much more complex rules for the compiler version,
-the expression follows those used by npm.
+the expression follows those used by `npm <https://docs.npmjs.com/misc/semver>`_.
 
 .. index:: source file, ! import
 
@@ -96,7 +98,7 @@ Use in Actual Compilers
 
 When the compiler is invoked, it is not only possible to specify how to
 discover the first element of a path, but it is possible to specify path prefix
-remappings so that e.g. ``github.com/elementrem/dapp-bin/library`` is remapped to
+remappings so that e.g. ``github.com/ethereum/dapp-bin/library`` is remapped to
 ``/usr/local/dapp-bin/library`` and the compiler will read the files from there.
 If multiple remappings can be applied, the one with the longest key is tried first. This
 allows for a "fallback-remapping" with e.g. ``""`` maps to
@@ -116,18 +118,18 @@ in files in or below the directory ``context`` that import a file that
 starts with ``prefix`` are redirected by replacing ``prefix`` by ``target``.
 
 So as an example, if you clone
-``github.com/elementrem/dapp-bin/`` locally to ``/usr/local/dapp-bin``, you can use
+``github.com/ethereum/dapp-bin/`` locally to ``/usr/local/dapp-bin``, you can use
 the following in your source file:
 
 ::
 
-  import "github.com/elementrem/dapp-bin/library/iterable_mapping.sol" as it_mapping;
+  import "github.com/ethereum/dapp-bin/library/iterable_mapping.sol" as it_mapping;
 
 and then run the compiler as
 
 .. code-block:: bash
 
-  solc github.com/elementrem/dapp-bin/=/usr/local/dapp-bin/ source.sol
+  solc github.com/ethereum/dapp-bin/=/usr/local/dapp-bin/ source.sol
 
 As a more complex example, suppose you rely on some module that uses a
 very old version of dapp-bin. That old version of dapp-bin is checked
@@ -135,8 +137,8 @@ out at ``/usr/local/dapp-bin_old``, then you can use
 
 .. code-block:: bash
 
-  solc module1:github.com/elementrem/dapp-bin/=/usr/local/dapp-bin/ \
-       module2:github.com/elementrem/dapp-bin/=/usr/local/dapp-bin_old/ \
+  solc module1:github.com/ethereum/dapp-bin/=/usr/local/dapp-bin/ \
+       module2:github.com/ethereum/dapp-bin/=/usr/local/dapp-bin_old/ \
        source.sol
 
 so that all imports in ``module2`` point to the old version but imports
@@ -151,13 +153,13 @@ remapping ``=/``.
 If there are multiple remappings that lead to a valid file, the remapping
 with the longest common prefix is chosen.
 
-**browser-solidity**:
+**Remix**:
 
-The `browser-based compiler <https://elementrem.github.io/browser-solidity>`_
+`Remix <https://remix.ethereum.org/>`_
 provides an automatic remapping for github and will also automatically retrieve
 the file over the network:
 You can import the iterable mapping by e.g.
-``import "github.com/elementrem/dapp-bin/library/iterable_mapping.sol" as it_mapping;``.
+``import "github.com/ethereum/dapp-bin/library/iterable_mapping.sol" as it_mapping;``.
 
 Other source code providers may be added in the future.
 
@@ -183,7 +185,7 @@ Additionally, there is another type of comment called a natspec comment,
 for which the documentation is not yet written. They are written with a
 triple slash (``///``) or a double asterisk block(``/** ... */``) and
 they should be used directly above function declarations or statements.
-You can use Doxygen-style tags inside these comments to document
+You can use `Doxygen <https://en.wikipedia.org/wiki/Doxygen>`_-style tags inside these comments to document
 functions, annotate conditions for formal verification, and provide a
 **confirmation text** which is shown to users when they attempt to invoke a
 function.
@@ -195,17 +197,16 @@ for the two input parameters and two returned values.
 
     pragma solidity ^0.4.0;
 
- /** @title Shape calculator.*/
- contract shapeCalculator{
-     /**@dev Calculates a rectangle's surface and perimeter.
-      * @param w Width of the rectangle.
-      * @param h Height of the rectangle.
-      * @return s The calculated surface.
-      * @return p The calculated perimeter.
-      */
-     function rectangle(uint w, uint h) returns (uint s, uint p) {
-         s = w * h;
-         p = 2 * (w + h);
-     }
- }
-
+    /** @title Shape calculator. */
+    contract shapeCalculator {
+        /** @dev Calculates a rectangle's surface and perimeter.
+          * @param w Width of the rectangle.
+          * @param h Height of the rectangle.
+          * @return s The calculated surface.
+          * @return p The calculated perimeter.
+          */
+        function rectangle(uint w, uint h) returns (uint s, uint p) {
+            s = w * h;
+            p = 2 * (w + h);
+        }
+    }
