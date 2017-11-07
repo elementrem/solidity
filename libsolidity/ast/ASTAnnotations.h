@@ -14,19 +14,21 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
-
-
-
-
-
+/**
+ * @author Christian <c@ethdev.com>
+ * @date 2015
+ * Object containing the type and other annotations for the AST nodes.
+ */
 
 #pragma once
+
+#include <libsolidity/ast/ASTForward.h>
+#include <libsolidity/ast/ExperimentalFeatures.h>
 
 #include <map>
 #include <memory>
 #include <vector>
 #include <set>
-#include <libsolidity/ast/ASTForward.h>
 
 namespace dev
 {
@@ -60,6 +62,8 @@ struct SourceUnitAnnotation: ASTAnnotation
 	std::string path;
 	/// The exported symbols (all global symbols).
 	std::map<ASTString, std::vector<Declaration const*>> exportedSymbols;
+	/// Experimental features.
+	std::set<ExperimentalFeature> experimentalFeatures;
 };
 
 struct ImportAnnotation: ASTAnnotation
@@ -78,8 +82,8 @@ struct TypeDeclarationAnnotation: ASTAnnotation
 
 struct ContractDefinitionAnnotation: TypeDeclarationAnnotation, DocumentedAnnotation
 {
-	/// Whether all functions are implemented.
-	bool isFullyImplemented = true;
+	/// List of functions without a body. Can also contain functions from base classes.
+	std::vector<FunctionDefinition const*> unimplementedFunctions;
 	/// List of all (direct and indirect) base contracts in order from derived to
 	/// base, including the contract itself.
 	std::vector<ContractDefinition const*> linearizedBaseContracts;
@@ -90,6 +94,9 @@ struct ContractDefinitionAnnotation: TypeDeclarationAnnotation, DocumentedAnnota
 
 struct FunctionDefinitionAnnotation: ASTAnnotation, DocumentedAnnotation
 {
+	/// The function this function overrides, if any. This is always the closest
+	/// in the linearized inheritance hierarchy.
+	FunctionDefinition const* superFunction = nullptr;
 };
 
 struct EventDefinitionAnnotation: ASTAnnotation, DocumentedAnnotation
@@ -112,13 +119,24 @@ struct StatementAnnotation: ASTAnnotation, DocumentedAnnotation
 
 namespace assembly
 {
-struct Identifier; // forward
+	struct AsmAnalysisInfo;
+	struct Identifier;
 }
 
 struct InlineAssemblyAnnotation: StatementAnnotation
 {
-	/// Mapping containing resolved references to external identifiers.
-	std::map<assembly::Identifier const*, Declaration const*> externalReferences;
+	struct ExternalIdentifierInfo
+	{
+		Declaration const* declaration = nullptr;
+		bool isSlot = false; ///< Whether the storage slot of a variable is queried.
+		bool isOffset = false; ///< Whether the intra-slot offset of a storage variable is queried.
+		size_t valueSize = size_t(-1);
+	};
+
+	/// Mapping containing resolved references to external identifiers and their value size
+	std::map<assembly::Identifier const*, ExternalIdentifierInfo> externalReferences;
+	/// Information generated during analysis phase.
+	std::shared_ptr<assembly::AsmAnalysisInfo> analysisInfo;
 };
 
 struct ReturnAnnotation: StatementAnnotation
@@ -188,12 +206,17 @@ struct BinaryOperationAnnotation: ExpressionAnnotation
 	TypePointer commonType;
 };
 
+enum class FunctionCallKind
+{
+	Unset,
+	FunctionCall,
+	TypeConversion,
+	StructConstructorCall
+};
+
 struct FunctionCallAnnotation: ExpressionAnnotation
 {
-	/// Whether this is an explicit type conversion.
-	bool isTypeConversion = false;
-	/// Whether this is a struct constructor call.
-	bool isStructConstructorCall = false;
+	FunctionCallKind kind = FunctionCallKind::Unset;
 };
 
 }

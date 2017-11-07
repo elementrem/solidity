@@ -14,11 +14,11 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
-
-
-
-
-
+/** @file main.cpp
+ * @author Gav Wood <i@gavwood.com>
+ * @date 2014
+ * Ethereum client.
+ */
 
 #include <fstream>
 #include <iostream>
@@ -39,7 +39,7 @@ static string const VersionString =
         (string(SOL_VERSION_PRERELEASE).empty() ? "" : "-" + string(SOL_VERSION_PRERELEASE)) +
         (string(SOL_VERSION_BUILDINFO).empty() ? "" : "+" + string(SOL_VERSION_BUILDINFO));
 
-void help()
+static void help()
 {
 	cout
 		<< "Usage lllc [OPTIONS] <file>" << endl
@@ -54,7 +54,7 @@ void help()
         exit(0);
 }
 
-void version()
+static void version()
 {
 	cout << "LLLC, the Lovely Little Language Compiler " << endl;
 	cout << "Version: " << VersionString << endl;
@@ -74,7 +74,7 @@ specified default locale if it is valid, and if not then it will modify the
 environment the process is running in to use a sensible default. This also means
 that users do not need to install language packs for their OS.
 */
-void setDefaultOrCLocale()
+static void setDefaultOrCLocale()
 {
 #if __unix__
 	if (!std::setlocale(LC_ALL, ""))
@@ -138,7 +138,7 @@ int main(int argc, char** argv)
 	}
 	else if (mode == Binary || mode == Hex)
 	{
-		auto bs = compileLLL(src, optimise ? true : false, &errors);
+		auto bs = compileLLL(src, optimise ? true : false, &errors, contentsString);
 		if (mode == Hex)
 			cout << toHex(bs) << endl;
 		else if (mode == Binary)
@@ -147,7 +147,7 @@ int main(int argc, char** argv)
 	else if (mode == ParseTree)
 		cout << parseLLL(src) << endl;
 	else if (mode == Assembly)
-		cout << compileLLLToAsm(src, optimise ? true : false, &errors) << endl;
+		cout << compileLLLToAsm(src, optimise ? true : false, &errors, contentsString) << endl;
 	for (auto const& i: errors)
 		cerr << i << endl;
 	if ( errors.size() )

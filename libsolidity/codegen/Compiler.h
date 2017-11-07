@@ -14,11 +14,11 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
-
-
-
-
-
+/**
+ * @author Christian <c@ethdev.com>
+ * @date 2014
+ * Solidity AST to EVM bytecode compiler.
+ */
 
 #pragma once
 
@@ -40,6 +40,8 @@ public:
 		m_context(&m_runtimeContext)
 	{ }
 
+	/// Compiles a contract.
+	/// @arg _metadata contains the to be injected metadata CBOR
 	void compileContract(
 		ContractDefinition const& _contract,
 		std::map<ContractDefinition const*, ele::Assembly const*> const& _contracts,
@@ -51,14 +53,21 @@ public:
 		ContractDefinition const& _contract,
 		std::map<ContractDefinition const*, ele::Assembly const*> const& _contracts
 	);
-	ele::Assembly const& assembly() { return m_context.assembly(); }
-	ele::LinkerObject assembledObject() { return m_context.assembledObject(); }
-	ele::LinkerObject runtimeObject() { return m_context.assembledRuntimeObject(m_runtimeSub); }
+	/// @returns Entire assembly.
+	ele::Assembly const& assembly() const { return m_context.assembly(); }
+	/// @returns The entire assembled object (with constructor).
+	ele::LinkerObject assembledObject() const { return m_context.assembledObject(); }
+	/// @returns Only the runtime object (without constructor).
+	ele::LinkerObject runtimeObject() const { return m_context.assembledRuntimeObject(m_runtimeSub); }
 	/// @arg _sourceCodes is the map of input files to source code strings
-	/// @arg _inJsonFromat shows whether the out should be in Json format
-	Json::Value streamAssembly(std::ostream& _stream, StringMap const& _sourceCodes = StringMap(), bool _inJsonFormat = false) const
+	std::string assemblyString(StringMap const& _sourceCodes = StringMap()) const
 	{
-		return m_context.streamAssembly(_stream, _sourceCodes, _inJsonFormat);
+		return m_context.assemblyString(_sourceCodes);
+	}
+	/// @arg _sourceCodes is the map of input files to source code strings
+	Json::Value assemblyJSON(StringMap const& _sourceCodes = StringMap()) const
+	{
+		return m_context.assemblyJSON(_sourceCodes);
 	}
 	/// @returns Assembly items of the normal compiler context
 	ele::AssemblyItems const& assemblyItems() const { return m_context.assembly().items(); }

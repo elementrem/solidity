@@ -4,16 +4,31 @@
 ## ppa servers for building.
 ##
 ## If no argument is given, creates a package for the develop branch
-## and uploads it to the elementrem/elementrem-dev ppa.
+## and uploads it to the ethereum/ethereum-dev ppa.
 ##
 ## If an argument is given, it is used as a tag and the resulting package
-## is uploaded to the elementrem/elementrem ppa.
+## is uploaded to the ethereum/ethereum ppa.
 ##
-## The gnupg key for "builds@elementrem.org" has to be present in order to sign
+## The gnupg key for "builds@ethereum.org" has to be present in order to sign
 ## the package.
 ##
 ## It will clone the Solidity git from github, determine the version,
 ## create a source archive and push it to the ubuntu ppa servers.
+##
+## This requires the following entries in /etc/dput.cf:
+##
+##  [ethereum-dev]
+##  fqdn			= ppa.launchpad.net
+##  method			= ftp
+##  incoming		= ~ethereum/ethereum-dev
+##  login			= anonymous
+## 
+##  [ethereum]
+##  fqdn			= ppa.launchpad.net
+##  method			= ftp
+##  incoming		= ~ethereum/ethereum
+##  login			= anonymous
+
 ##
 ##############################################################################
 
@@ -28,25 +43,35 @@ fi
 
 if [ "$branch" = develop ]
 then
-    pparepo=elementrem/elementrem-dev
-    ppafilesurl=https://launchpad.net/~elementrem/+archive/ubuntu/elementrem-dev/+files
+    pparepo=ethereum-dev
+    ppafilesurl=https://launchpad.net/~ethereum/+archive/ubuntu/ethereum-dev/+files
 else
-    pparepo=elementrem/elementrem
-    ppafilesurl=https://launchpad.net/~elementrem/+archive/ubuntu/elementrem/+files
+    pparepo=ethereum
+    ppafilesurl=https://launchpad.net/~ethereum/+archive/ubuntu/ethereum/+files
 fi
 
 keyid=703F83D0
-email=builds@elementrem.org
+email=builds@ethereum.org
 packagename=solc
 
-for distribution in trusty vivid wily xenial yakkety
+for distribution in trusty vivid xenial zesty
 do
 cd /tmp/
+rm -rf $distribution
 mkdir $distribution
 cd $distribution
 
+# Dependency
+if [ $distribution = trusty -o $distribution = vivid ]
+then
+    Z3DEPENDENCY=""
+else
+    Z3DEPENDENCY="libz3-dev,
+               "
+fi
+
 # Fetch source
-git clone --recursive https://github.com/elementrem/solidity.git -b "$branch"
+git clone --depth 2 --recursive https://github.com/ethereum/solidity.git -b "$branch"
 mv solidity solc
 
 # Fetch jsoncpp dependency
@@ -55,10 +80,10 @@ wget -O ./solc/deps/downloads/jsoncpp-1.7.7.tar.gz https://github.com/open-sourc
 
 # Determine version
 cd solc
-version=`grep -oP "PROJECT_VERSION \"?\K[0-9.]+(?=\")"? CMakeLists.txt`
-commithash=`git rev-parse --short=8 HEAD`
-committimestamp=`git show --format=%ci HEAD | head -n 1`
-commitdate=`git show --format=%ci HEAD | head -n 1 | cut - -b1-10 | sed -e 's/-0?/./' | sed -e 's/-0?/./'`
+version=$($(dirname "$0")/get_version.sh)
+commithash=$(git rev-parse --short=8 HEAD)
+committimestamp=$(git show --format=%ci HEAD | head -n 1)
+commitdate=$(git show --format=%ci HEAD | head -n 1 | cut - -b1-10 | sed -e 's/-0?/./' | sed -e 's/-0?/./')
 
 echo "$commithash" > commit_hash.txt
 if [ $branch = develop ]
@@ -86,8 +111,8 @@ cat <<EOF > debian/control
 Source: solc
 Section: science
 Priority: extra
-Maintainer: Christian (Buildserver key) <builds@elementrem.org>
-Build-Depends: debhelper (>= 9.0.0),
+Maintainer: Christian (Buildserver key) <builds@ethereum.org>
+Build-Depends: ${Z3DEPENDENCY}debhelper (>= 9.0.0),
                cmake,
                g++-4.8,
                git,
@@ -97,16 +122,16 @@ Build-Depends: debhelper (>= 9.0.0),
                libtool,
                scons
 Standards-Version: 3.9.5
-Homepage: https://elementrem.org
-Vcs-Git: git://github.com/elementrem/solidity.git
-Vcs-Browser: https://github.com/elementrem/solidity
+Homepage: https://ethereum.org
+Vcs-Git: git://github.com/ethereum/solidity.git
+Vcs-Browser: https://github.com/ethereum/solidity
 
 Package: solc
 Architecture: any-i386 any-amd64
 Multi-Arch: same
 Depends: \${shlibs:Depends}, \${misc:Depends}
 Replaces: lllc (<< 1:0.3.6)
-Conflicts: libelementrem (<= 1.2.9)
+Conflicts: libethereum (<= 1.2.9)
 Description: Solidity compiler.
  The commandline interface to the Solidity smart contract compiler.
 EOF
@@ -145,14 +170,14 @@ EOF
 cat <<EOF > debian/copyright
 Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: solc
-Source: https://github.com/elementrem/solidity
+Source: https://github.com/ethereum/solidity
 
 Files: *
-Copyright: 2016-2017 Elementrem
+Copyright: 2014-2016 Ethereum
 License: GPL-3.0+
 
 Files: debian/*
-Copyright: 2016 Elementrem
+Copyright: 2016 Ethereum
 License: GPL-3.0+
 
 License: GPL-3.0+
@@ -177,7 +202,7 @@ solc (0.0.1-0ubuntu1) saucy; urgency=low
 
   * Initial release.
 
- -- Christian <build@elementrem.org>  Mon, 03 Feb 2016 14:50:20 +0000
+ -- Christian <build@ethereum.org>  Mon, 03 Feb 2016 14:50:20 +0000
 EOF
 echo docs > debian/docs
 mkdir debian/source
@@ -192,7 +217,8 @@ EMAIL="$email" dch -v 1:${debversion}-${versionsuffix} "git build of ${commithas
 # build source package
 # If packages is rejected because original source is already present, add
 # -sd to remove it from the .changes file
-debuild -S -sa -us -uc
+# -d disables the build dependencies check
+debuild -S -d -sa -us -uc
 
 # prepare .changes file for Launchpad
 sed -i -e s/UNRELEASED/${distribution}/ -e s/urgency=medium/urgency=low/ ../*.changes
@@ -223,6 +249,6 @@ fi
 debsign --re-sign -k ${keyid} ../${packagename}_${debversion}-${versionsuffix}_source.changes
 
 # upload
-dput ppa:${pparepo} ../${packagename}_${debversion}-${versionsuffix}_source.changes
+dput ${pparepo} ../${packagename}_${debversion}-${versionsuffix}_source.changes
 
 done

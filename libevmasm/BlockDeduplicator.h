@@ -14,12 +14,12 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
-
-
-
-
-
-
+/**
+ * @file BlockDeduplicator.h
+ * @author Christian <c@ethdev.com>
+ * @date 2015
+ * Unifies basic blocks that share content.
+ */
 
 #pragma once
 
@@ -45,7 +45,7 @@ using AssemblyItems = std::vector<AssemblyItem>;
 class BlockDeduplicator
 {
 public:
-	BlockDeduplicator(AssemblyItems& _items): m_items(_items) {}
+	explicit BlockDeduplicator(AssemblyItems& _items): m_items(_items) {}
 	/// @returns true if something was changed
 	bool deduplicate();
 	/// @returns the tags that were replaced.

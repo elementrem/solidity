@@ -14,11 +14,11 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
-
-
-
-
-
+/**
+ * @author Christian <c@ethdev.com>
+ * @date 2016
+ * Framework for executing Solidity contracts and testing them against C++ implementation.
+ */
 
 #include <cstdlib>
 #include <boost/test/framework.hpp>

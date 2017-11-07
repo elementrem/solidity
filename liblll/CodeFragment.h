@@ -14,10 +14,10 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
-
-
-
-
+/** @file CodeFragment.h
+ * @author Gav Wood <i@gavwood.com>
+ * @date 2014
+ */
 
 #pragma once
 
@@ -39,10 +39,12 @@ struct CompilerState;
 class CodeFragment
 {
 public:
-	CodeFragment() {}
-	CodeFragment(sp::utree const& _t, CompilerState& _s, bool _allowASM = false);
+	using ReadCallback = std::function<std::string(std::string const&)>;
 
-	static CodeFragment compile(std::string const& _src, CompilerState& _s);
+	CodeFragment() {}
+	CodeFragment(sp::utree const& _t, CompilerState& _s, ReadCallback const& _readFile, bool _allowASM = false);
+
+	static CodeFragment compile(std::string const& _src, CompilerState& _s, ReadCallback const& _readFile);
 
 	/// Consolidates data and compiles code.
 	Assembly& assembly(CompilerState const& _cs) { finalise(_cs); return m_asm; }
@@ -50,8 +52,8 @@ public:
 private:
 	void finalise(CompilerState const& _cs);
 
-	template <class T> void error() const { BOOST_THROW_EXCEPTION(T() ); }
-	template <class T> void error(std::string const& reason) const {
+	template <class T> static void error() { BOOST_THROW_EXCEPTION(T() ); }
+	template <class T> static void error(std::string const& reason) {
 		auto err = T();
 		err << errinfo_comment(reason);
 		BOOST_THROW_EXCEPTION(err);
@@ -60,6 +62,7 @@ private:
 
 	bool m_finalised = false;
 	Assembly m_asm;
+	ReadCallback m_readFile;
 };
 
 static const CodeFragment NullCodeFragment;

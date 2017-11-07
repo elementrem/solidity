@@ -14,12 +14,12 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
-
-
-
-
-
-
+/**
+ * @file ExpressionClasses.cpp
+ * @author Christian <c@ethdev.com>
+ * @date 2015
+ * Container for equivalence classes of expressions for use in common subexpression elimination.
+ */
 
 #include <libevmasm/ExpressionClasses.h>
 #include <utility>

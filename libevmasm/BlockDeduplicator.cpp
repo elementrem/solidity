@@ -14,17 +14,20 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
-
-
-
-
-
-
+/**
+ * @file BlockDeduplicator.cpp
+ * @author Christian <c@ethdev.com>
+ * @date 2015
+ * Unifies basic blocks that share content.
+ */
 
 #include <libevmasm/BlockDeduplicator.h>
-#include <functional>
+
 #include <libevmasm/AssemblyItem.h>
 #include <libevmasm/SemanticInformation.h>
+
+#include <functional>
+#include <set>
 
 using namespace std;
 using namespace dev;

@@ -15,14 +15,14 @@ are not guaranteed to be working and despite best efforts they might contain und
 and/or broken changes. We recommend using the latest release. Package installers below
 will use the latest release.
 
-Browser-Solidity
-================
+Remix
+=====
 
 If you just want to try Solidity for small contracts, you
-can try `browser-solidity <https://elementrem.github.io/browser-solidity>`_
+can try `Remix <https://remix.ethereum.org/>`_
 which does not need any installation. If you want to use it
 without connection to the Internet, you can go to
-https://github.com/elementrem/browser-solidity/tree/gh-pages and
+https://github.com/ethereum/browser-solidity/tree/gh-pages and
 download the .ZIP file as explained on that page.
 
 npm / Node.js
@@ -31,8 +31,8 @@ npm / Node.js
 This is probably the most portable and most convenient way to install Solidity locally.
 
 A platform-independent JavaScript library is provided by compiling the C++ source
-into JavaScript using Emscripten. It can be used in projects directly (such as Browser-Solidity).
-Please refer to the `solc-js <https://github.com/elementrem/solc-js>`_ repository for instructions.
+into JavaScript using Emscripten. It can be used in projects directly (such as Remix).
+Please refer to the `solc-js <https://github.com/ethereum/solc-js>`_ repository for instructions.
 
 It also contains a commandline tool called `solcjs`, which can be installed via npm:
 
@@ -54,9 +54,9 @@ repository contains potentially unstable changes in the develop branch.
 
 .. code:: bash
 
-    docker run elementrem/solc:stable solc --version
+    docker run ethereum/solc:stable solc --version
 
-Currenty, the docker image only contains the compiler executable,
+Currently, the docker image only contains the compiler executable,
 so you have to do some additional work to link in the source and
 output directories.
 
@@ -64,13 +64,13 @@ Binary Packages
 ===============
 
 Binary packages of Solidity available at
-`solidity/releases <https://github.com/elementrem/solidity/releases>`_.
+`solidity/releases <https://github.com/ethereum/solidity/releases>`_.
 
 We also have PPAs for Ubuntu.  For the latest stable version.
 
 .. code:: bash
 
-    sudo add-apt-repository ppa:elementrem/elementrem
+    sudo add-apt-repository ppa:ethereum/ethereum
     sudo apt-get update
     sudo apt-get install solc
 
@@ -78,16 +78,28 @@ If you want to use the cutting edge developer version:
 
 .. code:: bash
 
-    sudo add-apt-repository ppa:elementrem/elementrem
-    sudo add-apt-repository ppa:elementrem/elementrem-dev
+    sudo add-apt-repository ppa:ethereum/ethereum
+    sudo add-apt-repository ppa:ethereum/ethereum-dev
     sudo apt-get update
     sudo apt-get install solc
+    
+We are also releasing a `snap package <https://snapcraft.io/>`_, which is installable in all the `supported Linux distros <https://snapcraft.io/docs/core/install>`_. To install the latest stable version of solc:
+
+.. code:: bash
+
+    sudo snap install solc
+
+Or if you want to help testing the unstable solc with the most recent changes from the development branch:
+
+.. code:: bash
+
+    sudo snap install solc --edge
 
 Arch Linux also has packages, albeit limited to the latest development version:
 
 .. code:: bash
 
-    pacman -S solidity-git
+    pacman -S solidity
 
 Homebrew is missing pre-built bottles at the time of writing,
 following a Jenkins to TravisCI migration, but Homebrew
@@ -98,7 +110,7 @@ We will re-add the pre-built bottles soon.
 
     brew update
     brew upgrade
-    brew tap elementrem/elementrem
+    brew tap ethereum/ethereum
     brew install solidity
     brew linkapps solidity
 
@@ -106,7 +118,7 @@ If you need a specific version of Solidity you can install a
 Homebrew formula directly from Github.
 
 View 
-`solidity.rb commits on Github <https://github.com/elementrem/homebrew-elementrem/commits/master/solidity.rb>`_.
+`solidity.rb commits on Github <https://github.com/ethereum/homebrew-ethereum/commits/master/solidity.rb>`_.
 
 Follow the history links until you have a raw file link of a 
 specific commit of ``solidity.rb``.
@@ -117,7 +129,13 @@ Install it using ``brew``:
 
     brew unlink solidity
     # Install 0.4.8
-    brew install https://raw.githubusercontent.com/elementrem/homebrew-elementrem/77cce03da9f289e5a3ffe579840d3c5dc0a62717/solidity.rb
+    brew install https://raw.githubusercontent.com/ethereum/homebrew-ethereum/77cce03da9f289e5a3ffe579840d3c5dc0a62717/solidity.rb
+
+Gentoo Linux also provides a solidity package that can be installed using ``emerge``:
+
+.. code:: bash
+
+    emerge dev-lang/solidity
 
 .. _building-from-source:
 
@@ -131,7 +149,7 @@ To clone the source code, execute the following command:
 
 .. code:: bash
 
-    git clone --recursive https://github.com/elementrem/solidity.git
+    git clone --recursive https://github.com/ethereum/solidity.git
     cd solidity
 
 If you want to help developing Solidity,
@@ -212,6 +230,7 @@ Or, on Windows:
 Command-Line Build
 ------------------
 
+Solidity project uses CMake to configure the build.
 Building Solidity is quite similar on Linux, macOS and other Unices:
 
 .. code:: bash
@@ -246,10 +265,16 @@ Alternatively, you can build for Windows on the command-line, like so:
 
     cmake --build . --config RelWithDebInfo
 
+CMake options
+=============
+
+If you are interested what CMake options are available run ``cmake .. -LH``.
+
 The version string in detail
 ============================
 
 The Solidity version string contains four parts:
+
 - the version number
 - pre-release tag, usually set to ``develop.YYYY.MM.DD`` or ``nightly.YYYY.MM.DD``
 - commit in the format of ``commit.GITHASH``
@@ -260,7 +285,7 @@ If there are local modifications, the commit will be postfixed with ``.mod``.
 These parts are combined as required by Semver, where the Solidity pre-release tag equals to the Semver pre-release
 and the Solidity commit and platform combined make up the Semver build metadata.
 
-A relase example: ``0.4.8+commit.60cc1668.Emscripten.clang``.
+A release example: ``0.4.8+commit.60cc1668.Emscripten.clang``.
 
 A pre-release example: ``0.4.9-nightly.2017.1.17+commit.6ecb4aa3.Emscripten.clang``
 
@@ -280,4 +305,4 @@ Example:
 3. a breaking change is introduced - version is bumped to 0.5.0
 4. the 0.5.0 release is made
 
-This behaviour works well with the version pragma.
+This behaviour works well with the  :ref:`version pragma <version_pragma>`.

@@ -14,12 +14,12 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
-
-
-
-
-
-
+/**
+ * @file SemanticInformation.h
+ * @author Christian <c@ethdev.com>
+ * @date 2015
+ * Helper to provide semantic information about assembly items.
+ */
 
 #pragma once
 
@@ -53,6 +53,8 @@ struct SemanticInformation
 	static bool invalidatesMemory(solidity::Instruction _instruction);
 	/// @returns true if the given instruction modifies storage (even indirectly).
 	static bool invalidatesStorage(solidity::Instruction _instruction);
+	static bool invalidInPureFunctions(solidity::Instruction _instruction);
+	static bool invalidInViewFunctions(solidity::Instruction _instruction);
 };
 
 }

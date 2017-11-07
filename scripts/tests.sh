@@ -33,17 +33,22 @@ REPO_ROOT="$(dirname "$0")"/..
 echo "Running commandline tests..."
 "$REPO_ROOT/test/cmdlineTests.sh"
 
-echo "Checking that StandardToken.sol, owned.sol and mortal.sol produce bytecode..."
-output=$("$REPO_ROOT"/build/solc/solc --bin "$REPO_ROOT"/std/*.sol 2>/dev/null | grep "ffff" | wc -l)
-test "${output//[[:blank:]]/}" = "3"
-
 # This conditional is only needed because we don't have a working Homebrew
-# install for `ele` at the time of writing, so we unzip the ZIP file locally
+# install for `eth` at the time of writing, so we unzip the ZIP file locally
 # instead.  This will go away soon.
 if [[ "$OSTYPE" == "darwin"* ]]; then
-    ELE_PATH="$REPO_ROOT/ele"
+    ETH_PATH="$REPO_ROOT/eth"
+elif [ -z $CI ]; then
+    ETH_PATH="eth"
 else
-    ELE_PATH="ele"
+    mkdir -p /tmp/test
+    # Update hash below if binary is changed.
+    wget -q -O /tmp/test/eth https://github.com/ethereum/cpp-ethereum/releases/download/solidityTester/eth_byzantium2
+    test "$(shasum /tmp/test/eth)" = "4dc3f208475f622be7c8e53bee720e14cd254c6f  /tmp/test/eth"
+    sync
+    chmod +x /tmp/test/eth
+    sync # Otherwise we might get a "text file busy" error
+    ETH_PATH="/tmp/test/eth"
 fi
 
 # This trailing ampersand directs the shell to run the command in the background,
@@ -51,8 +56,8 @@ fi
 # asynchronously. The shell will immediately return the return status of 0 for
 # true and continue as normal, either processing further commands in a script
 # or returning the cursor focus back to the user in a Linux terminal.
-$ELE_PATH --test -d /tmp/test &
-ELE_PID=$!
+$ETH_PATH --test -d /tmp/test &
+ETH_PID=$!
 
 # Wait until the IPC endpoint is available.  That won't be available instantly.
 # The node needs to get a little way into its startup sequence before the IPC
@@ -67,7 +72,7 @@ echo "--> Running tests without optimizer..."
   echo "--> Running tests WITH optimizer..." && \
   "$REPO_ROOT"/build/test/soltest --show-progress -- --optimize --ipcpath /tmp/test/gele.ipc
 ERROR_CODE=$?
-pkill "$ELE_PID" || true
+pkill "$ETH_PID" || true
 sleep 4
-pgrep "$ELE_PID" && pkill -9 "$ELE_PID" || true
+pgrep "$ETH_PID" && pkill -9 "$ETH_PID" || true
 exit $ERROR_CODE

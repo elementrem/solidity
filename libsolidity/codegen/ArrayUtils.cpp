@@ -14,18 +14,18 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
-
-
-
-
-
+/**
+ * @author Christian <c@ethdev.com>
+ * @date 2015
+ * Code generation utils that handle arrays.
+ */
 
 #include <libsolidity/codegen/ArrayUtils.h>
 #include <libevmasm/Instruction.h>
 #include <libsolidity/codegen/CompilerContext.h>
 #include <libsolidity/codegen/CompilerUtils.h>
 #include <libsolidity/ast/Types.h>
-#include <libsolidity/interface/Utils.h>
+#include <libsolidity/interface/Exceptions.h>
 #include <libsolidity/codegen/LValue.h>
 
 using namespace std;
@@ -291,8 +291,11 @@ void ArrayUtils::copyArrayToMemory(ArrayType const& _sourceType, bool _padToWord
 	CompilerUtils utils(m_context);
 	unsigned baseSize = 1;
 	if (!_sourceType.isByteArray())
+	{
 		// We always pad the elements, regardless of _padToWordBoundaries.
 		baseSize = _sourceType.baseType()->calldataEncodedSize();
+		solAssert(baseSize >= 0x20, "");
+	}
 
 	if (_sourceType.location() == DataLocation::CallData)
 	{
@@ -449,7 +452,7 @@ void ArrayUtils::copyArrayToMemory(ArrayType const& _sourceType, bool _padToWord
 		m_context << Instruction::DUP3 << Instruction::ADD << Instruction::SWAP2;
 		if (_sourceType.isDynamicallySized())
 		{
-			// actual array data is stored at SHA3(storage_offset)
+			// actual array data is stored at KECCAK256(storage_offset)
 			m_context << Instruction::SWAP1;
 			utils.computeHashStatic();
 			m_context << Instruction::SWAP1;
@@ -731,7 +734,7 @@ void ArrayUtils::resizeDynamicArray(ArrayType const& _typeIn) const
 				_context << Instruction::POP;
 			}
 
-			// Change of length for a regular array (i.e. length at location, data at sha3(location)).
+			// Change of length for a regular array (i.e. length at location, data at KECCAK256(location)).
 			// stack: ref new_length old_length
 			// store new length
 			_context << Instruction::DUP2;
@@ -913,10 +916,10 @@ void ArrayUtils::accessIndex(ArrayType const& _arrayType, bool _doBoundsCheck) c
 	switch (location)
 	{
 	case DataLocation::Memory:
-		if (_arrayType.isDynamicallySized())
-			m_context << u256(32) << Instruction::ADD;
-		// fall-through
 	case DataLocation::CallData:
+		if (location == DataLocation::Memory && _arrayType.isDynamicallySized())
+			m_context << u256(32) << Instruction::ADD;
+
 		if (!_arrayType.isByteArray())
 		{
 			m_context << Instruction::SWAP1;

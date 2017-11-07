@@ -44,15 +44,15 @@
 	(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 	OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
-
-
-
-
-
+/**
+ * @author Christian <c@ethdev.com>
+ * @date 2014
+ * Solidity scanner.
+ */
 
 #include <algorithm>
 #include <tuple>
-#include <libsolidity/interface/Utils.h>
+#include <libsolidity/interface/Exceptions.h>
 #include <libsolidity/parsing/Scanner.h>
 
 using namespace std;
@@ -435,7 +435,7 @@ void Scanner::scanToken()
 		m_nextToken.location.start = sourcePos();
 		switch (m_char)
 		{
-		case '\n': // fall-through
+		case '\n':
 		case ' ':
 		case '\t':
 			token = selectToken(Token::Whitespace);

@@ -14,12 +14,12 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
-
-
-
-
-
-
+/**
+ * @file SemanticInformation.cpp
+ * @author Christian <c@ethdev.com>
+ * @date 2015
+ * Helper to provide semantic information about assembly items.
+ */
 
 #include <libevmasm/SemanticInformation.h>
 #include <libevmasm/AssemblyItem.h>
@@ -90,14 +90,14 @@ bool SemanticInformation::isDupInstruction(AssemblyItem const& _item)
 {
 	if (_item.type() != Operation)
 		return false;
-	return Instruction::DUP1 <= _item.instruction() && _item.instruction() <= Instruction::DUP16;
+	return solidity::isDupInstruction(_item.instruction());
 }
 
 bool SemanticInformation::isSwapInstruction(AssemblyItem const& _item)
 {
 	if (_item.type() != Operation)
 		return false;
-	return Instruction::SWAP1 <= _item.instruction() && _item.instruction() <= Instruction::SWAP16;
+	return solidity::isSwapInstruction(_item.instruction());
 }
 
 bool SemanticInformation::isJumpInstruction(AssemblyItem const& _item)
@@ -137,12 +137,16 @@ bool SemanticInformation::isDeterministic(AssemblyItem const& _item)
 	case Instruction::CALL:
 	case Instruction::CALLCODE:
 	case Instruction::DELEGATECALL:
+	case Instruction::STATICCALL:
 	case Instruction::CREATE:
+	case Instruction::CREATE2:
 	case Instruction::GAS:
 	case Instruction::PC:
 	case Instruction::MSIZE: // depends on previous writes and reads, not only on content
 	case Instruction::BALANCE: // depends on previous calls
 	case Instruction::EXTCODESIZE:
+	case Instruction::RETURNDATACOPY: // depends on previous calls
+	case Instruction::RETURNDATASIZE:
 		return false;
 	default:
 		return true;
@@ -156,11 +160,13 @@ bool SemanticInformation::invalidatesMemory(Instruction _instruction)
 	case Instruction::CALLDATACOPY:
 	case Instruction::CODECOPY:
 	case Instruction::EXTCODECOPY:
+	case Instruction::RETURNDATACOPY:
 	case Instruction::MSTORE:
 	case Instruction::MSTORE8:
 	case Instruction::CALL:
 	case Instruction::CALLCODE:
 	case Instruction::DELEGATECALL:
+	case Instruction::STATICCALL:
 		return true;
 	default:
 		return false;
@@ -175,9 +181,63 @@ bool SemanticInformation::invalidatesStorage(Instruction _instruction)
 	case Instruction::CALLCODE:
 	case Instruction::DELEGATECALL:
 	case Instruction::CREATE:
+	case Instruction::CREATE2:
 	case Instruction::SSTORE:
 		return true;
 	default:
 		return false;
 	}
+}
+
+bool SemanticInformation::invalidInPureFunctions(Instruction _instruction)
+{
+	switch (_instruction)
+	{
+	case Instruction::ADDRESS:
+	case Instruction::BALANCE:
+	case Instruction::ORIGIN:
+	case Instruction::CALLER:
+	case Instruction::CALLVALUE:
+	case Instruction::GAS:
+	case Instruction::GASPRICE:
+	case Instruction::EXTCODESIZE:
+	case Instruction::EXTCODECOPY:
+	case Instruction::BLOCKHASH:
+	case Instruction::COINBASE:
+	case Instruction::TIMESTAMP:
+	case Instruction::NUMBER:
+	case Instruction::DIFFICULTY:
+	case Instruction::GASLIMIT:
+	case Instruction::STATICCALL:
+	case Instruction::SLOAD:
+		return true;
+	default:
+		break;
+	}
+	return invalidInViewFunctions(_instruction);
+}
+
+bool SemanticInformation::invalidInViewFunctions(Instruction _instruction)
+{
+	switch (_instruction)
+	{
+	case Instruction::SSTORE:
+	case Instruction::JUMP:
+	case Instruction::JUMPI:
+	case Instruction::LOG0:
+	case Instruction::LOG1:
+	case Instruction::LOG2:
+	case Instruction::LOG3:
+	case Instruction::LOG4:
+	case Instruction::CREATE:
+	case Instruction::CALL:
+	case Instruction::CALLCODE:
+	case Instruction::DELEGATECALL:
+	case Instruction::CREATE2:
+	case Instruction::SELFDESTRUCT:
+		return true;
+	default:
+		break;
+	}
+	return false;
 }

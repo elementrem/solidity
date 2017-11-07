@@ -14,10 +14,10 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
-
-
-
-
+/** @file ErrorCheck.h
+ * @author Yoichi Hirai <i@yoichihirai.com>
+ * @date 2016
+ */
 
 #pragma once
 

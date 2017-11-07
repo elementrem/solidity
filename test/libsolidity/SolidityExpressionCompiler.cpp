@@ -14,11 +14,11 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
-
-
-
-
-
+/**
+ * @author Christian <c@ethdev.com>
+ * @date 2014
+ * Unit tests for the solidity expression compiler.
+ */
 
 #include <string>
 
@@ -29,6 +29,7 @@
 #include <libsolidity/codegen/ExpressionCompiler.h>
 #include <libsolidity/ast/AST.h>
 #include <libsolidity/analysis/TypeChecker.h>
+#include <libsolidity/interface/ErrorReporter.h>
 #include "../TestHelper.h"
 
 using namespace std;
@@ -98,7 +99,8 @@ bytes compileFirstExpression(
 	try
 	{
 		ErrorList errors;
-		sourceUnit = Parser(errors).parse(make_shared<Scanner>(CharStream(_sourceCode)));
+		ErrorReporter errorReporter(errors);
+		sourceUnit = Parser(errorReporter).parse(make_shared<Scanner>(CharStream(_sourceCode)));
 		if (!sourceUnit)
 			return bytes();
 	}
@@ -114,21 +116,23 @@ bytes compileFirstExpression(
 		declarations.push_back(variable.get());
 
 	ErrorList errors;
+	ErrorReporter errorReporter(errors);
 	map<ASTNode const*, shared_ptr<DeclarationContainer>> scopes;
-	NameAndTypeResolver resolver(declarations, scopes, errors);
+	NameAndTypeResolver resolver(declarations, scopes, errorReporter);
 	resolver.registerDeclarations(*sourceUnit);
 
 	vector<ContractDefinition const*> inheritanceHierarchy;
 	for (ASTPointer<ASTNode> const& node: sourceUnit->nodes())
 		if (ContractDefinition* contract = dynamic_cast<ContractDefinition*>(node.get()))
 		{
-			ELE_TEST_REQUIRE_NO_THROW(resolver.resolveNamesAndTypes(*contract), "Resolving names failed");
+			BOOST_REQUIRE_MESSAGE(resolver.resolveNamesAndTypes(*contract), "Resolving names failed");
 			inheritanceHierarchy = vector<ContractDefinition const*>(1, contract);
 		}
 	for (ASTPointer<ASTNode> const& node: sourceUnit->nodes())
 		if (ContractDefinition* contract = dynamic_cast<ContractDefinition*>(node.get()))
 		{
-			TypeChecker typeChecker(errors);
+			ErrorReporter errorReporter(errors);
+			TypeChecker typeChecker(errorReporter);
 			BOOST_REQUIRE(typeChecker.checkTypeRequirements(*contract));
 		}
 	for (ASTPointer<ASTNode> const& node: sourceUnit->nodes())

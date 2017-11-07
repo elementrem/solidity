@@ -14,10 +14,10 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
-
-
-
-
+/** @file CompilerState.h
+ * @author Gav Wood <i@gavwood.com>
+ * @date 2014
+ */
 
 #pragma once
 
@@ -40,7 +40,7 @@ struct CompilerState
 {
 	CompilerState();
 
-	CodeFragment const& getDef(std::string const& _s);
+	CodeFragment const& getDef(std::string const& _s) const;
 	void populateStandard();
 
 	unsigned stackSize = 128;

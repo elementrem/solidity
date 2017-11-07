@@ -14,37 +14,37 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
-
-
-
-
-
+/**
+ * @author Christian <c@ethdev.com>
+ * @date 2014
+ * Framework for executing contracts and testing them using RPC.
+ */
 
 #pragma once
 
-#include <functional>
+#include <test/TestHelper.h>
+#include <test/RPCSession.h>
 
-#include "TestHelper.h"
-#include "RPCSession.h"
-
-#include <libdevcore/ABI.h>
 #include <libdevcore/FixedHash.h>
+#include <libdevcore/SHA3.h>
+
+#include <functional>
 
 namespace dev
 {
 namespace test
 {
 	using rational = boost::rational<dev::bigint>;
-	/// An Elementrem address: 20 bytes.
+	/// An Ethereum address: 20 bytes.
 	/// @NOTE This is not endian-specific; it's just a bunch of bytes.
 	using Address = h160;
 
 	// The various denominations; here for ease of use where needed within code.
-	static const u256 element = exp10<18>();
-	static const u256 finney = exp10<15>();
-	static const u256 szabo = exp10<12>();
-	static const u256 shannon = exp10<9>();
-	static const u256 mey = exp10<0>();
+	static const u256 mey = 1;
+	static const u256 shannon = u256("1000000000");
+	static const u256 szabo = shannon * 1000;
+	static const u256 finney = szabo * 1000;
+	static const u256 element = finney * 1000;
 
 class ExecutionFramework
 {
@@ -130,6 +130,8 @@ public:
 			);
 		}
 	}
+
+	static std::pair<bool, std::string> compareAndCreateMessage(bytes const& _result, bytes const& _expectation);
 
 	static bytes encode(bool _value) { return encode(byte(_value)); }
 	static bytes encode(int _value) { return encode(u256(_value)); }
@@ -217,25 +219,25 @@ public:
 			bytes const& ret = call(_name + "(string)", u256(0x20), _arg.length(), _arg);
 			BOOST_REQUIRE(ret.size() == 0x20);
 			BOOST_CHECK(std::count(ret.begin(), ret.begin() + 12, 0) == 12);
-			return ele::abiOut<u160>(ret);
+			return u160(u256(h256(ret)));
 		}
 
 		std::string callAddressReturnsString(std::string const& _name, u160 const& _arg)
 		{
-			bytesConstRef ret = ref(call(_name + "(address)", _arg));
-			BOOST_REQUIRE(ret.size() >= 0x20);
-			u256 offset = ele::abiOut<u256>(ret);
+			bytesConstRef const ret(&call(_name + "(address)", _arg));
+			BOOST_REQUIRE(ret.size() >= 0x40);
+			u256 offset(h256(ret.cropped(0, 0x20)));
 			BOOST_REQUIRE_EQUAL(offset, 0x20);
-			u256 len = ele::abiOut<u256>(ret);
-			BOOST_REQUIRE_EQUAL(ret.size(), ((len + 0x1f) / 0x20) * 0x20);
-			return ret.cropped(0, size_t(len)).toString();
+			u256 len(h256(ret.cropped(0x20, 0x20)));
+			BOOST_REQUIRE_EQUAL(ret.size(), 0x40 + ((len + 0x1f) / 0x20) * 0x20);
+			return ret.cropped(0x40, size_t(len)).toString();
 		}
 
 		h256 callStringReturnsBytes32(std::string const& _name, std::string const& _arg)
 		{
 			bytes const& ret = call(_name + "(string)", u256(0x20), _arg.length(), _arg);
 			BOOST_REQUIRE(ret.size() == 0x20);
-			return ele::abiOut<h256>(ret);
+			return h256(ret);
 		}
 
 	private:
@@ -262,7 +264,7 @@ protected:
 	void sendMessage(bytes const& _data, bool _isCreation, u256 const& _value = 0);
 	void sendElement(Address const& _to, u256 const& _value);
 	size_t currentTimestamp();
-	size_t blockTimestamp(u256 number);
+	size_t blockTimestamp(u256 _number);
 
 	/// @returns the (potentially newly created) _ith address.
 	Address account(size_t _i);
@@ -292,6 +294,12 @@ protected:
 	std::vector<LogEntry> m_logs;
 	u256 m_gasUsed;
 };
+
+#define ABI_CHECK(result, expectation) do { \
+	auto abiCheckResult = ExecutionFramework::compareAndCreateMessage((result), (expectation)); \
+	BOOST_CHECK_MESSAGE(abiCheckResult.first, abiCheckResult.second); \
+} while (0)
+
 
 }
 } // end namespaces

@@ -14,10 +14,10 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
-
-
-
-
+/** @file Parser.cpp
+ * @author Gav Wood <i@gavwood.com>
+ * @date 2014
+ */
 
 #include "Parser.h"
 
@@ -109,7 +109,7 @@ void dev::ele::parseTreeLLL(string const& _s, sp::utree& o_out)
 	qi::rule<it, space_type, sp::utree::list_type()> mstore = '[' > element > ']' > -qi::lit(":") > element;
 	qi::rule<it, space_type, sp::utree::list_type()> sstore = qi::lit("[[") > element > qi::lit("]]") > -qi::lit(":") > element;
 	qi::rule<it, space_type, sp::utree::list_type()> calldataload = qi::lit("$") > element;
-	qi::rule<it, space_type, sp::utree::list_type()> list = '(' > +element > ')';
+	qi::rule<it, space_type, sp::utree::list_type()> list = '(' > *element > ')';
 
 	qi::rule<it, space_type, sp::utree()> extra = sload[tagNode<2>()] | mload[tagNode<1>()] | sstore[tagNode<4>()] | mstore[tagNode<3>()] | seq[tagNode<5>()] | calldataload[tagNode<6>()];
 	element = atom | list | extra;

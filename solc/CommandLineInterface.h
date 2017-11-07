@@ -14,15 +14,15 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
-
-
-
-
-
+/**
+ * @author Lefteris <lefteris@ethdev.com>
+ * @date 2014
+ * Solidity command line interface.
+ */
 #pragma once
 
 #include <libsolidity/interface/CompilerStack.h>
-#include <libsolidity/inlineasm/AsmStack.h>
+#include <libsolidity/interface/AssemblyStack.h>
 
 #include <boost/program_options.hpp>
 #include <boost/filesystem/path.hpp>
@@ -54,9 +54,7 @@ private:
 	bool link();
 	void writeLinkedFiles();
 
-	/// Parse assembly input.
-	bool assemble();
-	void outputAssembly();
+	bool assemble(AssemblyStack::Language _language, AssemblyStack::Machine _targetMachine);
 
 	void outputCompilationResults();
 
@@ -66,8 +64,9 @@ private:
 	void handleOpcode(std::string const& _contract);
 	void handleBytecode(std::string const& _contract);
 	void handleSignatureHashes(std::string const& _contract);
-	void handleOnChainMetadata(std::string const& _contract);
-	void handleMeta(DocumentationType _type, std::string const& _contract);
+	void handleMetadata(std::string const& _contract);
+	void handleABI(std::string const& _contract);
+	void handleNatspec(bool _natspecDev, std::string const& _contract);
 	void handleGasEstimation(std::string const& _contract);
 	void handleFormal();
 
@@ -82,9 +81,15 @@ private:
 	/// @arg _data to be written
 	void createFile(std::string const& _fileName, std::string const& _data);
 
+	/// Create a json file in the given directory
+	/// @arg _fileName the name of the file (the extension will be replaced with .json)
+	/// @arg _json json string to be written
+	void createJson(std::string const& _fileName, std::string const& _json);
+
 	bool m_error = false; ///< If true, some error occurred.
 
 	bool m_onlyAssemble = false;
+
 	bool m_onlyLink = false;
 
 	/// Compiler arguments variable map
@@ -97,8 +102,6 @@ private:
 	std::map<std::string, h160> m_libraries;
 	/// Solidity compiler stack
 	std::unique_ptr<dev::solidity::CompilerStack> m_compiler;
-	/// Assembly stacks for assembly-only mode
-	std::map<std::string, assembly::InlineAssemblyStack> m_assemblyStacks;
 };
 
 }

@@ -14,10 +14,10 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
-
-
-
-
+/** @file Compiler.cpp
+ * @author Gav Wood <i@gavwood.com>
+ * @date 2014
+ */
 
 #include "Compiler.h"
 #include "Parser.h"
@@ -28,13 +28,17 @@ using namespace std;
 using namespace dev;
 using namespace dev::ele;
 
-bytes dev::ele::compileLLL(string const& _src, bool _opt, vector<string>* _errors)
+
+bytes dev::ele::compileLLL(string const& _src, bool _opt, vector<string>* _errors, ReadCallback const& _readFile)
 {
 	try
 	{
 		CompilerState cs;
 		cs.populateStandard();
-		bytes ret = CodeFragment::compile(_src, cs).assembly(cs).optimise(_opt).assemble().bytecode;
+		auto assembly = CodeFragment::compile(_src, cs, _readFile).assembly(cs);
+		if (_opt)
+			assembly = assembly.optimise(true);
+		bytes ret = assembly.assemble().bytecode;
 		for (auto i: cs.treesToKill)
 			killBigints(i);
 		return ret;
@@ -63,13 +67,16 @@ bytes dev::ele::compileLLL(string const& _src, bool _opt, vector<string>* _error
 	return bytes();
 }
 
-std::string dev::ele::compileLLLToAsm(std::string const& _src, bool _opt, std::vector<std::string>* _errors)
+std::string dev::ele::compileLLLToAsm(std::string const& _src, bool _opt, std::vector<std::string>* _errors, ReadCallback const& _readFile)
 {
 	try
 	{
 		CompilerState cs;
 		cs.populateStandard();
-		string ret = CodeFragment::compile(_src, cs).assembly(cs).optimise(_opt).out();
+		auto assembly = CodeFragment::compile(_src, cs, _readFile).assembly(cs);
+		if (_opt)
+			assembly = assembly.optimise(true);
+		string ret = assembly.assemblyString();
 		for (auto i: cs.treesToKill)
 			killBigints(i);
 		return ret;

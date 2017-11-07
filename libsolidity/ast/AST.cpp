@@ -14,16 +14,14 @@
     You should have received a copy of the GNU General Public License
     along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
+/**
+ * @author Christian <c@ethdev.com>
+ * @date 2014
+ * Solidity abstract syntax tree.
+ */
 
-
-
-
-
-
-#include <libsolidity/interface/Utils.h>
 #include <libsolidity/ast/AST.h>
 #include <libsolidity/ast/ASTVisitor.h>
-#include <libsolidity/interface/Exceptions.h>
 #include <libsolidity/ast/AST_accept.h>
 
 #include <libdevcore/SHA3.h>
@@ -74,11 +72,6 @@ ASTAnnotation& ASTNode::annotation() const
 	return *m_annotation;
 }
 
-Error ASTNode::createTypeError(string const& _description) const
-{
-	return Error(Error::Type::TypeError) << errinfo_sourceLocation(location()) << errinfo_comment(_description);
-}
-
 SourceUnitAnnotation& SourceUnit::annotation() const
 {
 	if (!m_annotation)
@@ -86,13 +79,35 @@ SourceUnitAnnotation& SourceUnit::annotation() const
 	return dynamic_cast<SourceUnitAnnotation&>(*m_annotation);
 }
 
-string Declaration::sourceUnitName() const
+set<SourceUnit const*> SourceUnit::referencedSourceUnits(bool _recurse, set<SourceUnit const*> _skipList) const
+{
+	set<SourceUnit const*> sourceUnits;
+	for (ImportDirective const* importDirective: filteredNodes<ImportDirective>(nodes()))
+	{
+		auto const& sourceUnit = importDirective->annotation().sourceUnit;
+		if (!_skipList.count(sourceUnit))
+		{
+			_skipList.insert(sourceUnit);
+			sourceUnits.insert(sourceUnit);
+			if (_recurse)
+				sourceUnits += sourceUnit->referencedSourceUnits(true, _skipList);
+		}
+	}
+	return sourceUnits;
+}
+
+SourceUnit const& Declaration::sourceUnit() const
 {
 	solAssert(!!m_scope, "");
 	ASTNode const* scope = m_scope;
 	while (dynamic_cast<Declaration const*>(scope) && dynamic_cast<Declaration const*>(scope)->m_scope)
 		scope = dynamic_cast<Declaration const*>(scope)->m_scope;
-	return dynamic_cast<SourceUnit const&>(*scope).annotation().path;
+	return dynamic_cast<SourceUnit const&>(*scope);
+}
+
+string Declaration::sourceUnitName() const
+{
+	return sourceUnit().annotation().path;
 }
 
 ImportAnnotation& ImportDirective::annotation() const
@@ -142,7 +157,7 @@ FunctionDefinition const* ContractDefinition::fallbackFunction() const
 {
 	for (ContractDefinition const* contract: annotation().linearizedBaseContracts)
 		for (FunctionDefinition const* f: contract->definedFunctions())
-			if (f->name().empty())
+			if (f->isFallback())
 				return f;
 	return nullptr;
 }
@@ -155,11 +170,19 @@ vector<EventDefinition const*> const& ContractDefinition::interfaceEvents() cons
 		m_interfaceEvents.reset(new vector<EventDefinition const*>());
 		for (ContractDefinition const* contract: annotation().linearizedBaseContracts)
 			for (EventDefinition const* e: contract->events())
-				if (eventsSeen.count(e->name()) == 0)
+			{
+				/// NOTE: this requires the "internal" version of an Event,
+				///       though here internal strictly refers to visibility,
+				///       and not to function encoding (jump vs. call)
+				auto const& function = e->functionType(true);
+				solAssert(function, "");
+				string eventSignature = function->externalSignature();
+				if (eventsSeen.count(eventSignature) == 0)
 				{
-					eventsSeen.insert(e->name());
+					eventsSeen.insert(eventSignature);
 					m_interfaceEvents->push_back(e);
 				}
+			}
 	}
 	return *m_interfaceEvents;
 }
@@ -168,7 +191,6 @@ vector<pair<FixedHash<4>, FunctionTypePointer>> const& ContractDefinition::inter
 {
 	if (!m_interfaceFunctionList)
 	{
-		set<string> functionsSeen;
 		set<string> signaturesSeen;
 		m_interfaceFunctionList.reset(new vector<pair<FixedHash<4>, FunctionTypePointer>>());
 		for (ContractDefinition const* contract: annotation().linearizedBaseContracts)
@@ -196,26 +218,6 @@ vector<pair<FixedHash<4>, FunctionTypePointer>> const& ContractDefinition::inter
 		}
 	}
 	return *m_interfaceFunctionList;
-}
-
-Json::Value const& ContractDefinition::devDocumentation() const
-{
-	return m_devDocumentation;
-}
-
-Json::Value const& ContractDefinition::userDocumentation() const
-{
-	return m_userDocumentation;
-}
-
-void ContractDefinition::setDevDocumentation(Json::Value const& _devDocumentation)
-{
-	m_devDocumentation = _devDocumentation;
-}
-
-void ContractDefinition::setUserDocumentation(Json::Value const& _userDocumentation)
-{
-	m_userDocumentation = _userDocumentation;
 }
 
 vector<Declaration const*> const& ContractDefinition::inheritableMembers() const
@@ -351,6 +353,15 @@ string FunctionDefinition::externalSignature() const
 	return FunctionType(*this).externalSignature();
 }
 
+string FunctionDefinition::fullyQualifiedName() const
+{
+	auto const* contract = dynamic_cast<ContractDefinition const*>(scope());
+	solAssert(contract, "Enclosing scope of function definition was not set.");
+
+	auto fname = name().empty() ? "<fallback>" : name();
+	return sourceUnitName() + ":" + contract->name() + "." + fname;
+}
+
 FunctionDefinitionAnnotation& FunctionDefinition::annotation() const
 {
 	if (!m_annotation)
@@ -411,6 +422,23 @@ bool VariableDeclaration::isCallableParameter() const
 	for (auto const& variable: callable->parameters())
 		if (variable.get() == this)
 			return true;
+	if (callable->returnParameterList())
+		for (auto const& variable: callable->returnParameterList()->parameters())
+			if (variable.get() == this)
+				return true;
+	return false;
+}
+
+bool VariableDeclaration::isLocalOrReturn() const
+{
+	return isReturnParameter() || (isLocalVariable() && !isCallableParameter());
+}
+
+bool VariableDeclaration::isReturnParameter() const
+{
+	auto const* callable = dynamic_cast<CallableDeclaration const*>(scope());
+	if (!callable)
+		return false;
 	if (callable->returnParameterList())
 		for (auto const& variable: callable->returnParameterList()->parameters())
 			if (variable.get() == this)
@@ -532,18 +560,26 @@ IdentifierAnnotation& Identifier::annotation() const
 	return dynamic_cast<IdentifierAnnotation&>(*m_annotation);
 }
 
+bool Literal::isHexNumber() const
+{
+	if (token() != Token::Number)
+		return false;
+	return boost::starts_with(value(), "0x");
+}
+
 bool Literal::looksLikeAddress() const
 {
 	if (subDenomination() != SubDenomination::None)
 		return false;
 
-	string lit = value();
-	return lit.substr(0, 2) == "0x" && abs(int(lit.length()) - 42) <= 1;
+	if (!isHexNumber())
+		return false;
+
+	return abs(int(value().length()) - 42) <= 1;
 }
 
 bool Literal::passesAddressChecksum() const
 {
-	string lit = value();
-	solAssert(lit.substr(0, 2) == "0x", "Expected hex prefix");
-	return dev::passesAddressChecksum(lit, true);
+	solAssert(isHexNumber(), "Expected hex number");
+	return dev::passesAddressChecksum(value(), true);
 }

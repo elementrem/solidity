@@ -14,11 +14,11 @@
     You should have received a copy of the GNU General Public License
     along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
-
-
-
-
-
+/**
+ * @author Christian <c@ethdev.com>
+ * @date 2014
+ * Forward-declarations of AST classes.
+ */
 
 #pragma once
 
@@ -57,6 +57,7 @@ class UserDefinedTypeName;
 class FunctionTypeName;
 class Mapping;
 class ArrayTypeName;
+class InlineAssembly;
 class Statement;
 class Block;
 class PlaceholderStatement;
@@ -94,7 +95,6 @@ template <class T>
 using ASTPointer = std::shared_ptr<T>;
 
 using ASTString = std::string;
-
 
 }
 }

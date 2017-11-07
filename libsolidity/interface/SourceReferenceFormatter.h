@@ -14,15 +14,16 @@
 	You should have received a copy of the GNU General Public License
 	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
-
-
-
-
-
+/**
+ * @author Christian <c@ethdev.com>
+ * @date 2014
+ * Formatting functions for errors referencing positions and locations in the source.
+ */
 
 #pragma once
 
 #include <ostream>
+#include <sstream>
 #include <functional>
 #include <libevmasm/SourceLocation.h>
 
@@ -53,6 +54,16 @@ public:
 		std::string const& _name,
 		ScannerFromSourceNameFun const& _scannerFromSourceName
 	);
+	static std::string formatExceptionInformation(
+		Exception const& _exception,
+		std::string const& _name,
+		ScannerFromSourceNameFun const& _scannerFromSourceName
+	)
+	{
+		std::ostringstream errorOutput;
+		printExceptionInformation(errorOutput, _exception, _name, _scannerFromSourceName);
+		return errorOutput.str();
+	}
 private:
 	/// Prints source name if location is given.
 	static void printSourceName(

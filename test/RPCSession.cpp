@@ -17,7 +17,7 @@
 	The Implementation originally from https://msdn.microsoft.com/en-us/library/windows/desktop/aa365592(v=vs.85).aspx
 */
 /// @file RPCSession.cpp
-/// Low-level IPC communication between the test framework and the Elementrem node.
+/// Low-level IPC communication between the test framework and the Ethereum node.
 
 #include "RPCSession.h"
 
@@ -217,10 +217,13 @@ void RPCSession::test_setChainParams(vector<string> const& _accounts)
 	{
 		"sealEngine": "NoProof",
 		"params": {
-			"accountStartNonce": "0x",
+			"accountStartNonce": "0x00",
 			"maximumExtraDataSize": "0x1000000",
 			"blockReward": "0x",
-			"allowFutureBlocks": "1"
+			"allowFutureBlocks": true,
+			"homesteadForkBlock": "0x00",
+			"EIP150ForkBlock": "0x00",
+			"EIP158ForkBlock": "0x00"
 		},
 		"genesis": {
 			"author": "0000000000000010000000000000000000000000",
@@ -233,7 +236,10 @@ void RPCSession::test_setChainParams(vector<string> const& _accounts)
 			"0000000000000000000000000000000000000001": { "mey": "1", "precompiled": { "name": "ecrecover", "linear": { "base": 3000, "word": 0 } } },
 			"0000000000000000000000000000000000000002": { "mey": "1", "precompiled": { "name": "sha256", "linear": { "base": 60, "word": 12 } } },
 			"0000000000000000000000000000000000000003": { "mey": "1", "precompiled": { "name": "ripemd160", "linear": { "base": 600, "word": 120 } } },
-			"0000000000000000000000000000000000000004": { "mey": "1", "precompiled": { "name": "identity", "linear": { "base": 15, "word": 3 } } }
+			"0000000000000000000000000000000000000004": { "mey": "1", "precompiled": { "name": "identity", "linear": { "base": 15, "word": 3 } } },
+			"0000000000000000000000000000000000000006": { "mey": "1", "precompiled": { "name": "alt_bn128_G1_add", "linear": { "base": 15, "word": 3 } } },
+			"0000000000000000000000000000000000000007": { "mey": "1", "precompiled": { "name": "alt_bn128_G1_mul", "linear": { "base": 15, "word": 3 } } },
+			"0000000000000000000000000000000000000008": { "mey": "1", "precompiled": { "name": "alt_bn128_pairing_product", "linear": { "base": 15, "word": 3 } } }
 		}
 	}
 	)";
@@ -313,9 +319,9 @@ Json::Value RPCSession::rpcCall(string const& _methodName, vector<string> const&
 	request += "],\"id\":" + to_string(m_rpcSequence) + "}";
 	++m_rpcSequence;
 
-	// cout << "Request: " << request << endl;
+	BOOST_TEST_MESSAGE("Request: " + request);
 	string reply = m_ipcSocket.sendRequest(request);
-	// cout << "Reply: " << reply << endl;
+	BOOST_TEST_MESSAGE("Reply: " + reply);
 
 	Json::Value result;
 	BOOST_REQUIRE(Json::Reader().parse(reply, result, false));

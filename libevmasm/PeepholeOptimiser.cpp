@@ -30,6 +30,9 @@ using namespace dev;
 
 // TODO: Extend this to use the tools from ExpressionClasses.cpp
 
+namespace
+{
+
 struct OptimiserState
 {
 	AssemblyItems const& items;
@@ -136,6 +139,21 @@ struct DoubleSwap: SimplePeepholeOptimizerMethod<DoubleSwap, 2>
 	}
 };
 
+struct DoublePush: SimplePeepholeOptimizerMethod<DoublePush, 2>
+{
+	static bool applySimple(AssemblyItem const& _push1, AssemblyItem const& _push2, std::back_insert_iterator<AssemblyItems> _out)
+	{
+		if (_push1.type() == Push && _push2.type() == Push && _push1.data() == _push2.data())
+		{
+			*_out = _push1;
+			*_out = {Instruction::DUP1, _push2.location()};
+			return true;
+		}
+		else
+			return false;
+	}
+};
+
 struct JumpToNext: SimplePeepholeOptimizerMethod<JumpToNext, 3>
 {
 	static size_t applySimple(
@@ -231,17 +249,28 @@ void applyMethods(OptimiserState& _state, Method, OtherMethods... _other)
 		applyMethods(_state, _other...);
 }
 
+size_t numberOfPops(AssemblyItems const& _items)
+{
+	return std::count(_items.begin(), _items.end(), Instruction::POP);
+}
+
+}
+
 bool PeepholeOptimiser::optimise()
 {
 	OptimiserState state {m_items, 0, std::back_inserter(m_optimisedItems)};
 	while (state.i < m_items.size())
-		applyMethods(state, PushPop(), OpPop(), DoubleSwap(), JumpToNext(), UnreachableCode(), TagConjunctions(), Identity());
-	if (m_optimisedItems.size() < m_items.size())
+		applyMethods(state, PushPop(), OpPop(), DoublePush(), DoubleSwap(), JumpToNext(), UnreachableCode(), TagConjunctions(), Identity());
+	if (m_optimisedItems.size() < m_items.size() || (
+		m_optimisedItems.size() == m_items.size() && (
+			ele::bytesRequired(m_optimisedItems, 3) < ele::bytesRequired(m_items, 3) ||
+			numberOfPops(m_optimisedItems) > numberOfPops(m_items)
+		)
+	))
 	{
 		m_items = std::move(m_optimisedItems);
 		return true;
 	}
 	else
 		return false;
-
 }
