@@ -1,3 +1,5 @@
+
+
 Ubuntu Xenial (16.04)
 ```
 //Prerequisite
@@ -15,3 +17,19 @@ mkdir build
 cd build
 cmake .. && make
 ```
+
+or even easier:     
+```
+#note: this will install binaries solc and soltest at usr/local/bin
+./scripts/build.sh
+```
+
+And even for Windows:
+```
+mkdir build
+cd build
+cmake -G "Visual Studio 15 2017 Win64" ..
+```
+This latter set of instructions should result in the creation of solidity.sln in that build directory. Double-clicking on that file should result in Visual Studio firing up. We suggest building RelWithDebugInfo configuration.       
+
+
